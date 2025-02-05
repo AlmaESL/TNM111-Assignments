@@ -2,35 +2,38 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- js scripts here -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scatter Plot</title>
 </head>
 
 <body>
 
-    <!-- container GUU uploading a csv file -->
-    <div id="uploadContainer">
-        <p>Upload a CSV file by cliking the upload button</p>
-        <input type="file" id="fileInput" accept=".csv">
-        <button id="uploadButton">Upload</button>
+  <!-- File Input for CSV -->
+  <input type="file" id="csvFile" accept=".csv" />
 
-        <!-- display the read csv file entries in a table - for debugging -->
-        
-         
-    </div>
+  <!-- Canvas to display scatter plot -->
+  <canvas id="scatterPlotCanvas" width="580" height="580" style="border: 1px solid black;"></canvas>
 
+  <!-- fetch the js scripts -->
+  <script src="scatterPlot.js"></script>
+  <script src="read_CSV.js"></script>
 
-    <!-- container for plot -->
-    <div id="scatterPlotContainer" style="width: 500px; height: 500px;">
-        <p>Hello world</p>
-    </div>
+  <script>
+    //create a scatter plot instance
+    const scatterPlot = new ScatterPlot("scatterPlotCanvas"); 
 
+    //retrieve data from csv file 
+    document.getElementById("csvFile").addEventListener("change", function (event) {
+      const file = event.target.files[0];
+      if (file) {
 
-
-    <script type="module">
-        //import scatter plot script here 
-    </script>
+        //readCSV calls for sactter plot implementation 
+        readCSV(file, scatterPlot);
+      }
+    }); 
+  </script>
 
 </body>
+
 </html>
