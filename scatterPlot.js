@@ -11,7 +11,9 @@ class ScatterPlot {
     this.margin = 50;
     this.legend_margin = 20;
 
-    
+    //hovering 
+    // this.hover_window = null;
+    // this.addHoverListener();
   }
 
   //set data and draw 
@@ -81,7 +83,7 @@ class ScatterPlot {
       this.ctx.moveTo(x_position, this.margin);
       this.ctx.lineTo(x_position, this.canvas.height - this.margin);
       this.ctx.stroke();
-      
+
       //tick labels
       this.ctx.fillStyle = "black";
       this.ctx.font = "10px Arial";
@@ -208,20 +210,27 @@ class ScatterPlot {
 
       this.ctx.fillStyle = "black";
       this.ctx.font = "12px Arial";
-      this.ctx.fillText(category, legend_x_pos-1, y + 5);
+      this.ctx.fillText(category, legend_x_pos - 1, y + 5);
 
-      legend_y_pos += 25; 
-    }); 
+      legend_y_pos += 25;
+    });
   }
 
-  //function to draw the scatter plot
-  drawScatter() {
+
+  //------------------------------------------------------------------------------------------------//
+  //hovering ??
+
+
+  //-------------------------------------------------------------------------------------------------------------------------------------------//
+
+   //function to draw the scatter plot
+   drawScatter() {
     if (this.data.length === 0) return;
     this.clearCanvas();
     const value_ranges = this.getValueRanges();
     this.drawAxes(value_ranges);
     this.drawPoints(value_ranges);
-    this.drawLegend(); 
+    this.drawLegend();
   }
 
 }
