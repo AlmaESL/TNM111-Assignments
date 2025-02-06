@@ -1,39 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scatter Plot</title>
+    <link rel="stylesheet" href="style.css"/>    
+  </head>
+  <body>
+    <h1>Scatter Plot</h1>
+    <p>
+      - Upload a CSV file using the button<br>
+      - Left click: Recenter with respects to selected point (click a second time to exit)<br>
+      - Right click: Show 5 nearest points to selected point (click a second time to exit)
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scatter Plot</title>
-</head>
+    </p>
+    <input type="file" id="csv-file" accept=".csv" />
+  
+    <div id="plot-container"></div>
 
-<body>
 
-  <!-- File Input for CSV -->
-  <input type="file" id="csvFile" accept=".csv" />
-
-  <!-- Canvas to display scatter plot -->
-  <canvas id="scatterPlotCanvas" width="580" height="580" style="border: 1px solid black;"></canvas>
-
-  <!-- fetch the js scripts -->
-  <script src="scatterPlot.js"></script>
-  <script src="read_CSV.js"></script>
-
-  <script>
-    //create a scatter plot instance
-    const scatterPlot = new ScatterPlot("scatterPlotCanvas"); 
-
-    //retrieve data from csv file 
-    document.getElementById("csvFile").addEventListener("change", function (event) {
-      const file = event.target.files[0];
-      if (file) {
-
-        //readCSV calls for sactter plot implementation 
-        readCSV(file, scatterPlot);
-      }
-    }); 
-  </script>
-
-</body>
-
+    
+    <script src="scatterPlot.js"></script>
+    <script src="read_CSV.js"></script>
+  </body>
 </html>

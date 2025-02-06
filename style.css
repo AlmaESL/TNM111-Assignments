@@ -1,0 +1,15 @@
+body {
+    font-family: Arial, sans-serif;
+  }
+  svg {
+    background-color: white;
+    border: 1px solid #ccc;
+  }
+  /* cursor to pointer */
+  .data-point {
+    cursor: pointer;
+  }
+
+  .data-point:hover {
+    fill: rgb(244, 180, 246);
+ }

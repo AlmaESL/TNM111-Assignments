@@ -1,236 +1,275 @@
 class ScatterPlot {
-
-  constructor(canvas_ID) {
-    this.canvas = document.getElementById(canvas_ID);
-    this.ctx = this.canvas.getContext("2d");
-    this.data = [];
-    this.shapes = ["circle", "square", "triangle"];
-    this.category_shape_pairs = {};
-
-    //acquire space between axes and legend, and canvas borders -> to ensure visibility
-    this.margin = 50;
-    this.legend_margin = 20;
-
-    //hovering 
-    // this.hover_window = null;
-    // this.addHoverListener();
-  }
-
-  //set data and draw 
-  setData(data) {
+  constructor(data, x, y, category) {
     this.data = data;
-    this.assignShapes();
-    this.drawScatter();
+    this.x = x;
+    this.y = y;
+    this.category = category;
+
+    //svg dimensions
+    this.width = 500;
+    this.height = 500;
+    this.margin = 50;
+
+    //get min and max original values 
+    this.min_x = Math.min(...data.map(d => d[this.x]));
+    this.max_x = Math.max(...data.map(d => d[this.x]));
+    this.min_y = Math.min(...data.map(d => d[this.y]));
+    this.max_y = Math.max(...data.map(d => d[this.y]));
+
+    //shapes array for categories
+    this.shapes = ["circle", "square", "triangle"];
+
+    //map categories to shapes
+    const unique_categories = Array.from(new Set(data.map(d => d[this.category])));
+    this.category_2_shape = {};
+    unique_categories.forEach((cat, i) => {
+      this.category_2_shape[cat] = this.shapes[i % this.shapes.length];
+    });
   }
 
-  //clear canvas 
-  clearCanvas() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  //utility function for linear scaling to fit svg 
+  normalize(value, dataMin, dataMax, svgMin, svgMax) {
+    //y =      m    +          x       *                     k
+    return svgMin + ((value - dataMin) * (svgMax - svgMin)) / (dataMax - dataMin);
   }
 
-  //get the min and max data values (for normalization to fit canvas space)
-  getValueRanges() {
-    return {
-      min_x: Math.min(...this.data.map(p => p.x)),
-      max_x: Math.max(...this.data.map(p => p.x)),
-      min_y: Math.min(...this.data.map(p => p.y)),
-      max_y: Math.max(...this.data.map(p => p.y)),
-    };
+
+  //utility function to compute euclidean distance between data points 
+  eudlidean_dist(p1, p2) {
+    const dx = p1[this.x] - p2[this.x];
+    const dy = p1[this.y] - p2[this.y];
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
-  //function to scale data x values to fit canvas 
-  scaleX(x, value_ranges) {
-    return ((x - value_ranges.min_x) / (value_ranges.max_x - value_ranges.min_x)) * (this.canvas.width - 2 * this.margin) + this.margin;
-  }
+  //generate svg by adding plot elements
+  generateSVG(selected_point_recenter = null, selected_point_neighbourhood = null) {
+    let svg_elements = [];
 
-  //function to scale data y values to fit canvas 
-  scaleY(y, value_ranges) {
-    return this.canvas.height - ((y - value_ranges.min_y) / (value_ranges.max_y - value_ranges.min_y)) * (this.canvas.height - 2 * this.margin) - this.margin;
-  }
+    svg_elements.push(this.drawAxes());
+    svg_elements.push(this.drawTicks());
 
-  //function to draw axes, ticks and tick values, and grid lines along the ticks
-  drawAxes(value_ranges) {
+    svg_elements.push(this.plotPoints(selected_point_recenter, selected_point_neighbourhood));
 
-    //x axis
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.margin, this.canvas.height - this.margin);
-    this.ctx.lineTo(this.canvas.width - this.margin - this.legend_margin, this.canvas.height - this.margin);
-    this.ctx.strokeStyle = "black";
-    this.ctx.stroke();
-
-
-    //y axis
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.margin, this.margin);
-    this.ctx.lineTo(this.margin, this.canvas.height - this.margin);
-    this.ctx.strokeStyle = "black";
-    this.ctx.stroke();
-
-    //x axis ticks and tick values 
-    const x_tick_interval = (value_ranges.max_x - value_ranges.min_x) / 8;
-    for (let i = 1; i < 8; i++) {
-
-      const x_value = value_ranges.min_x + i * x_tick_interval;
-      const x_position = this.scaleX(x_value, value_ranges);
-
-      this.ctx.beginPath();
-      this.ctx.moveTo(x_position, this.canvas.height - this.margin);
-      this.ctx.lineTo(x_position, this.canvas.height - this.margin + 5);
-      this.ctx.stroke();
-
-      //draw vertical grid lines 
-      this.ctx.beginPath();
-      this.ctx.moveTo(x_position, this.margin);
-      this.ctx.lineTo(x_position, this.canvas.height - this.margin);
-      this.ctx.stroke();
-
-      //tick labels
-      this.ctx.fillStyle = "black";
-      this.ctx.font = "10px Arial";
-      this.ctx.fillText(x_value.toFixed(2), x_position - 10, this.canvas.height - this.margin + 15);
+    //draw recenter grid around left click selected points
+    if (selected_point_recenter !== null) {
+      svg_elements.push(this.drawRecenterGrid(selected_point_recenter));
     }
 
+    svg_elements.push(this.createLegend());
 
-    //y axis ticks and tick values 
-    const y_tick_interval = (value_ranges.max_y - value_ranges.min_y) / 8;
+    return `<svg width="${this.width}" height="${this.height}">${svg_elements.join("\n")}</svg>`;
+  }
 
-    for (let i = 1; i < 8; i++) {
+  drawAxes() {
+    //draw x and y axis by defining the start and end points based on the svg dismensions and the margin
+    return `
+      <line x1="${this.margin}" y1="${this.height - this.margin}" x2="${this.width - this.margin}" y2="${this.height - this.margin}" stroke="black"/>
+      <line x1="${this.margin}" y1="${this.margin}" x2="${this.margin}" y2="${this.height - this.margin}" stroke="black"/>
+    `;
+  }
 
-      const y_value = value_ranges.min_y + i * y_tick_interval;
-      const y_position = this.scaleY(y_value, value_ranges);
+  drawTicks() {
 
-      this.ctx.beginPath();
-      this.ctx.moveTo(this.margin - 5, y_position);
-      this.ctx.lineTo(this.margin, y_position);
-      this.ctx.stroke();
+    let ticks = [];
+    const tickLength = 5;
 
-      //draw horizontal grid lines
-      this.ctx.beginPath();
-      this.ctx.moveTo(this.margin, y_position);
-      this.ctx.lineTo(this.canvas.width - this.margin - this.legend_margin, y_position);
-      this.ctx.stroke();
+    //draw 8 ticks on each axis.
+    for (let i = 0; i < 9; i++) {
 
-      this.ctx.fillStyle = "black";
-      this.ctx.font = "12px Arial";
-      this.ctx.fillText(y_value.toFixed(2), this.margin - 35, y_position + 1);
+      //compute the spacing of the ticks based on the svg dimensions
+      const xPos = this.margin + (i * (this.width - this.margin * 2)) / 8;
+      const yPos = this.margin + (i * (this.height - this.margin * 2)) / 8;
+
+      //compute corresponding tick values 
+      const xTickValue = this.min_x + ((this.max_x - this.min_x) * i) / 8;
+      const yTickValue = this.min_y + ((this.max_y - this.min_y) * (8 - i)) / 8;
+
+      //apply ticks to x axis
+      ticks.push(
+        `<line x1="${xPos}" y1="${this.height - this.margin}" x2="${xPos}" y2="${this.height - this.margin + tickLength}" stroke="black"/>`
+      );
+      ticks.push(
+        `<text x="${xPos}" y="${this.height - this.margin + 15}" font-size="10" text-anchor="middle">${xTickValue.toFixed(2)}</text>`
+      );
+
+      //apply ticks to y axis
+      ticks.push(
+        `<line x1="${this.margin - tickLength}" y1="${yPos}" x2="${this.margin}" y2="${yPos}" stroke="black"/>`
+      );
+      //add tick values
+      ticks.push(
+        `<text x="${this.margin - 10}" y="${yPos + 3}" font-size="10" text-anchor="end">${yTickValue.toFixed(2)}</text>`
+      );
     }
+
+    return ticks.join("\n");
   }
 
+  plotPoints(selected_point_recenter = null, selected_point_neighbourhood = null) {
+    let points = [];
+    let nearest_neighbors = [];
 
-  //function to assign shapes to categories 
-  assignShapes() {
-    //make a set of categories mapping to ensure unique occurances only 
-    let categories = [...new Set(this.data.map(p => p.category))];
+    if (selected_point_neighbourhood !== null) {
+      const selected = this.data[selected_point_neighbourhood];
 
-    //loop categories and assign corresponding shape to each index from the shapes array
-    categories.forEach((category, index) => {
-      this.category_shape_pairs[category] = this.shapes[index % this.shapes.length];
-    });
-  }
+      let distances = [];
 
+      //iterate over all data points and compute euclidean distance
+      this.data.forEach((d, i) => {
+        if (i !== selected_point_neighbourhood) {
+          
+          const dist = this.eudlidean_dist(d, selected);
 
-  drawPoints(value_ranges) {
-    this.data.forEach(point => {
-      //get catgory's shape
-      const shape = this.category_shape_pairs[point.category];
+          distances.push({ index: i, dist: dist });
+        }
+      });
 
-      //scale values of point 
-      const x = this.scaleX(point.x, value_ranges);
-      const y = this.scaleY(point.y, value_ranges);
+      //sort in order to get the 5 smallest distances
+      distances.sort((a, b) => a.dist - b.dist);
+      //take the 5 nearest neighbors
+      nearest_neighbors = distances.slice(0, 5).map(obj => obj.index);
 
-      this.ctx.fillStyle = 'blue';
-      this.ctx.lineWidth = '2';
+    }
 
-      //depending on category, draw correct shape
-      if (shape == "circle") {
-        this.drawCircle(x, y);
-      } else if (shape == "square") {
-        this.drawSquare(x, y);
-      } else if (shape == "triangle") {
-        this.drawTriangle(x, y);
+    for (let i = 0; i < this.data.length; i++) {
+      //get the current data point
+      const d = this.data[i];
+
+      //caluculate the normalized coordinates/values
+      const cx = this.normalize(d[this.x], this.min_x, this.max_x, this.margin, this.width - this.margin);
+      const cy = this.normalize(d[this.y], this.min_y, this.max_y, this.height - this.margin, this.margin);
+
+      //save the coordinates
+      d.x_svg_val = cx;
+      d.y_svg_val = cy;
+
+      //extract category shape
+      const shape = this.category_2_shape[d[this.category]];
+
+      //tooltip text 
+      const tooltip = `x: ${d[this.x]}, y: ${d[this.y]}, category: ${d[this.category]}`;
+
+      //default color
+      let color = "black";
+      //for highlighting
+      let extra_attributes = "";
+
+      //check if the point is selected
+      if (selected_point_neighbourhood !== null) {
+        
+        //check if the current point is selected
+        if (i === selected_point_neighbourhood) {
+
+          //hilighlight the selected point red
+          extra_attributes = 'stroke="red" stroke-width="2"';
+
+          //highlight the nearest neighbors magenta
+        } else if (nearest_neighbors.includes(i)) {
+          color = "magenta";
+        }
+
+        //check if the current point is selected
+      } else if (selected_point_recenter !== null) {
+        const selected = this.data[selected_point_recenter];
+
+        //handle points with same x or y value as selected point
+        const dx = d[this.x] - selected[this.x];
+        const dy = d[this.y] - selected[this.y]
+        
+        if (i !== selected_point_recenter) {
+      
+          if (dx < 0 && dy > 0) {
+            //first quadrant
+            color = "green";
+          } else if (dx > 0 && dy > 0) {
+            //second quadrant
+            color = "gray";
+          } else if (dx < 0 && dy < 0) {
+            //third quadrant
+            color = "purple";
+          } else if (dx > 0 && dy < 0) {
+            //fourth quadrant
+            color = "blue";
+          }
+        } else {
+          extra_attributes = 'stroke="red" stroke-width="2"';
+        }
       }
 
-    });
-  }
+      //make svg elements out of the points and add tootlip for hovering
+      let shape_object = "";
+      //it is through i we can access points, since i is the point index
+      const point_ptoperties = `fill="${color}" class="data-point" data-index="${i}" data-tooltip="${tooltip}"`;
 
-
-  //function to draw circles 
-  drawCircle(x, y) {
-    this.ctx.beginPath();
-    this.ctx.arc(x, y, 5, 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.stroke();
-  }
-
-  //function to draw squares 
-  drawSquare(x, y) {
-    this.ctx.beginPath();
-    this.ctx.rect(x - 5, y - 5, 10, 10);
-    this.ctx.fill();
-    this.ctx.stroke();
-  }
-
-  //function to draw triangles
-  drawTriangle(x, y) {
-    this.ctx.beginPath();
-    this.ctx.moveTo(x, y - 6);
-    this.ctx.lineTo(x - 6, y + 6);
-    this.ctx.lineTo(x + 6, y + 6);
-    this.ctx.closePath();
-    this.ctx.fill();
-    this.ctx.stroke();
-  }
-
-
-  //function to draw legend 
-  drawLegend() {
-
-    //position legend
-    const legend_x_pos = this.canvas.width - this.legend_margin;
-    let legend_y_pos = this.margin + 10;
-
-    //itrate categories and shapes 
-    Object.keys(this.category_shape_pairs).forEach(category => {
-      const shape = this.category_shape_pairs[category];
-
-      this.ctx.fillStyle = "blue";
-      this.ctx.strokeStyle = "black";
-
-      let x = legend_x_pos - 15;
-      let y = legend_y_pos;
-
-      //depending on category, draw correct shape
-      if (shape == "circle") {
-        this.drawCircle(x, y);
-      } else if (shape == "square") {
-        this.drawSquare(x, y);
-      } else if (shape == "triangle") {
-        this.drawTriangle(x, y);
+      //mark the selected point with a black stroke
+      if (selected_point_recenter === i) {
+        extra_attributes = 'stroke="red" stroke-width="2"';
       }
 
-      this.ctx.fillStyle = "black";
-      this.ctx.font = "12px Arial";
-      this.ctx.fillText(category, legend_x_pos - 1, y + 5);
-
-      legend_y_pos += 25;
-    });
+      //determine the shape and add it to the svg element
+      if (shape === "circle") {
+        shape_object = `<circle cx="${cx}" cy="${cy}" r="5" ${point_ptoperties} ${extra_attributes}> <title>${tooltip}</title> </circle/>`;
+      } else if (shape === "square") {
+        shape_object = `<rect x="${cx - 4}" y="${cy - 4}" width="8" height="8" ${point_ptoperties} ${extra_attributes}> <title>${tooltip}</title> </rect/>`;
+      } else if (shape === "triangle") {
+        shape_object = `<polygon points="${cx - 5},${cy + 5} ${cx + 5},${cy + 5} ${cx},${cy - 5}" ${point_ptoperties} ${extra_attributes}> <title>${tooltip}</title> </polygon/>`;
+      }
+      points.push(shape_object);
+    }
+    return points.join("\n");
   }
 
 
-  //------------------------------------------------------------------------------------------------//
-  //hovering ??
+  createLegend() {
 
+    //initialize a legend array and where to place it
+    let legend_object = [];
+    const legend_x = this.width - this.margin + 10;
+    const legend_y = this.margin;
 
-  //-------------------------------------------------------------------------------------------------------------------------------------------//
+    //initialize a counter for categories to assign to the legend
+    let i = 0;
 
-   //function to draw the scatter plot
-   drawScatter() {
-    if (this.data.length === 0) return;
-    this.clearCanvas();
-    const value_ranges = this.getValueRanges();
-    this.drawAxes(value_ranges);
-    this.drawPoints(value_ranges);
-    this.drawLegend();
+    //iterate category shapes and add them to legend  
+    for (const cat in this.category_2_shape) {
+      const shape = this.category_2_shape[cat];
+
+      //position legend vertically
+      const y_position = legend_y + i * 20;
+      let shape_objects = "";
+
+      const color = "black";
+
+      //determine the shape
+      if (shape === "circle") {
+        shape_objects = `<circle cx="${legend_x}" cy="${y_position}" r="5" fill="${color}"/>`;
+      } else if (shape === "square") {
+        shape_objects = `<rect x="${legend_x - 5}" y="${y_position - 5}" width="10" height="10" fill="${color}"/>`;
+      } else if (shape === "triangle") {
+        shape_objects = `<polygon points="${legend_x - 5},${y_position + 5} ${legend_x + 5},${y_position + 5} ${legend_x},${y_position - 5}" fill="${color}"/>`;
+      }
+
+      //add shape and category name
+      legend_object.push(shape_objects);
+      legend_object.push(`<text x="${legend_x + 15}" y="${y_position + 3}" font-size="10">${cat}</text>`);
+
+      //step to next category
+      i++;
+    }
+
+    return legend_object.join("\n");
   }
 
+  //from selected point, draw new axes and recenter grid around that point
+  drawRecenterGrid(selected_point) {
+
+    //get the selected point, this is origin of new axes
+    const selected = this.data[selected_point];
+
+    //return dashed lines to indicate new axes, originating from the selected point
+    return `
+      <line x1="${selected.x_svg_val}" y1="${this.margin}" x2="${selected.x_svg_val}" y2="${this.height - this.margin}" stroke="black" stroke-dasharray="4,4"/>
+      <line x1="${this.margin}" y1="${selected.y_svg_val}" x2="${this.width - this.margin}" y2="${selected.y_svg_val}" stroke="black" stroke-dasharray="4,4"/>
+    `;
+  }
 }
