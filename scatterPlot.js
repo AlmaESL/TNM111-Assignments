@@ -1,5 +1,6 @@
 class ScatterPlot {
   constructor(data, x, y, category) {
+
     this.data = data;
     this.x = x;
     this.y = y;
@@ -31,9 +32,11 @@ class ScatterPlot {
   }
 
   //utility function for linear scaling to fit svg 
-  normalize(value, dataMin, dataMax, svgMin, svgMax) {
+  normalize(value, data_min, data_max, svg_min, svgMax) {
     //y =      m    +          x       *                     k
-    return svgMin + ((value - dataMin) * (svgMax - svgMin)) / (dataMax - dataMin);
+    //transformation factor k is the relation between the data and svg dimensions, we are scaling an original value
+    //in its relation to the original data, then shift into the beginning of the svg
+    return svg_min + ((value - data_min) * (svgMax - svg_min)) / (data_max - data_min);
   }
 
 
@@ -69,7 +72,7 @@ class ScatterPlot {
     //of the svg 
     const x_axis = this.normalize(0, -this.abs_y, this.abs_y, this.height - this.margin, this.margin);
     //y axis, normlize origo positioning the y-axis horizontally in relation to the x-values range and the x-dimension
-    //ff the svg 
+    //of the svg 
     const y_axis = this.normalize(0, -this.abs_x, this.abs_x, this.width - this.margin, this.margin);
 
     return `
@@ -94,7 +97,7 @@ class ScatterPlot {
       const x_tick_value = -this.abs_x + (2 * this.abs_x * i) / 9;
       const y_tick_value = this.abs_y - (2 * this.abs_y * i) / 9;
 
-      //normalize the tick positions in relation to the normalized axes
+      //normalize the tick positions in relation to the normalized axes, just as for the axes
       const x_axis_tick = this.normalize(0, -this.abs_y, this.abs_y, this.height - this.margin, this.margin);
       const y_axis_tick = this.normalize(0, -this.abs_x, this.abs_x, this.margin, this.width - this.margin);
 
