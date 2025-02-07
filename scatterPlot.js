@@ -6,8 +6,8 @@ class ScatterPlot {
     this.category = category;
 
     //svg dimensions
-    this.width = 500;
-    this.height = 500;
+    this.width = 700;
+    this.height = 700;
     this.margin = 50;
 
     //get min and max original values 
@@ -15,6 +15,9 @@ class ScatterPlot {
     this.max_x = Math.max(...data.map(d => d[this.x]));
     this.min_y = Math.min(...data.map(d => d[this.y]));
     this.max_y = Math.max(...data.map(d => d[this.y]));
+
+    this.abs_x = Math.max(Math.abs(this.min_x), Math.abs(this.max_x));
+    this.abs_y = Math.max(Math.abs(this.min_y), Math.abs(this.max_y));
 
     //shapes array for categories
     this.shapes = ["circle", "square", "triangle"];
@@ -62,44 +65,60 @@ class ScatterPlot {
 
   drawAxes() {
     //draw x and y axis by defining the start and end points based on the svg dismensions and the margin
+    // return `
+    //   <line x1="${this.margin}" y1="${this.height - this.margin}" x2="${this.width - this.margin}" y2="${this.height - this.margin}" stroke="black"/>
+    //   <line x1="${this.margin}" y1="${this.margin}" x2="${this.margin}" y2="${this.height - this.margin}" stroke="black"/>
+    // `;
+
+    //x axis 
+    const x_axis = this.normalize(0, -this.abs_y, this.abs_y, this.height - this.margin, this.margin);
+    //y axis
+    const y_axis = this.normalize(0, -this.abs_x, this.abs_x, this.width - this.margin, this.margin);
+
     return `
-      <line x1="${this.margin}" y1="${this.height - this.margin}" x2="${this.width - this.margin}" y2="${this.height - this.margin}" stroke="black"/>
-      <line x1="${this.margin}" y1="${this.margin}" x2="${this.margin}" y2="${this.height - this.margin}" stroke="black"/>
+      <line x1="${this.margin}" y1="${x_axis}" x2="${this.width - this.margin}" y2="${x_axis}" stroke="black"/>
+      <line x1="${y_axis}" y1="${this.margin}" x2="${y_axis}" y2="${this.height - this.margin}" stroke="black"/>
     `;
   }
 
   drawTicks() {
 
     let ticks = [];
-    const tickLength = 5;
+    const tick_length = 5;
 
     //draw 8 ticks on each axis.
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 8; i++) {
 
       //compute the spacing of the ticks based on the svg dimensions
-      const xPos = this.margin + (i * (this.width - this.margin * 2)) / 8;
-      const yPos = this.margin + (i * (this.height - this.margin * 2)) / 8;
+      const x_pos = this.margin + (i * (this.width - this.margin * 2)) / 8;
+      const y_pos = this.margin + (i * (this.height - this.margin * 2)) / 8;
 
       //compute corresponding tick values 
-      const xTickValue = this.min_x + ((this.max_x - this.min_x) * i) / 8;
-      const yTickValue = this.min_y + ((this.max_y - this.min_y) * (8 - i)) / 8;
+      const x_tick_value = -this.abs_x + (2 * this.abs_x * i) / 8;
+      const y_tick_value = this.abs_y - (2 * this.abs_y * i) / 8;
+
+      const x_axis_tick = this.normalize(0, -this.abs_y, this.abs_y, this.height - this.margin, this.margin);
+      const y_axis_tick = this.normalize(0, -this.abs_x, this.abs_x, this.margin, this.width - this.margin);
 
       //apply ticks to x axis
-      ticks.push(
-        `<line x1="${xPos}" y1="${this.height - this.margin}" x2="${xPos}" y2="${this.height - this.margin + tickLength}" stroke="black"/>`
-      );
-      ticks.push(
-        `<text x="${xPos}" y="${this.height - this.margin + 15}" font-size="10" text-anchor="middle">${xTickValue.toFixed(2)}</text>`
-      );
+      if (Math.abs(x_tick_value) > 0.01) {
+        ticks.push(`
+        <line x1="${x_pos}" y1="${x_axis_tick}" x2="${x_pos}" y2="${x_axis_tick + tick_length}" stroke="black"/>`
+        );
 
-      //apply ticks to y axis
-      ticks.push(
-        `<line x1="${this.margin - tickLength}" y1="${yPos}" x2="${this.margin}" y2="${yPos}" stroke="black"/>`
-      );
-      //add tick values
-      ticks.push(
-        `<text x="${this.margin - 10}" y="${yPos + 3}" font-size="10" text-anchor="end">${yTickValue.toFixed(2)}</text>`
-      );
+        ticks.push(`
+        <text x="${x_pos}" y="${x_axis_tick - tick_length + 15}" font-size="10" Ftext-anchor="middle">${x_tick_value.toFixed(2)}</text>
+      `);
+      }
+      if (Math.abs(y_tick_value) > 0.01) {
+        ticks.push(` <line x1="${y_axis_tick - tick_length}" y1="${y_pos}" x2="${y_axis_tick}" y2="${y_pos}" stroke="black"/>`
+        );
+        //apply ticks to y axis
+        ticks.push(`
+        <text x="${y_axis_tick - 33}" y="${y_pos + 3}" font-size="10" text-anchor="middle">${y_tick_value.toFixed(2)}</text>
+      `);
+      }
+
     }
 
     return ticks.join("\n");
@@ -117,7 +136,7 @@ class ScatterPlot {
       //iterate over all data points and compute euclidean distance
       this.data.forEach((d, i) => {
         if (i !== selected_point_neighbourhood) {
-          
+
           const dist = this.eudlidean_dist(d, selected);
 
           distances.push({ index: i, dist: dist });
@@ -136,8 +155,13 @@ class ScatterPlot {
       const d = this.data[i];
 
       //caluculate the normalized coordinates/values
-      const cx = this.normalize(d[this.x], this.min_x, this.max_x, this.margin, this.width - this.margin);
-      const cy = this.normalize(d[this.y], this.min_y, this.max_y, this.height - this.margin, this.margin);
+      // const cx = this.normalize(d[this.x], this.min_x, this.max_x, this.margin, this.width - this.margin);
+      // const cy = this.normalize(d[this.y], this.min_y, this.max_y, this.height - this.margin, this.margin);
+
+      const cx = this.normalize(d[this.x], -this.abs_x, this.abs_x, this.margin, this.width - this.margin);
+      const cy = this.normalize(d[this.y], -this.abs_y, this.abs_y, this.height - this.margin, this.margin);
+
+      // Save the SVG coordinates for later (for example, for drawing recenter grid)
 
       //save the coordinates
       d.x_svg_val = cx;
@@ -156,7 +180,7 @@ class ScatterPlot {
 
       //check if the point is selected
       if (selected_point_neighbourhood !== null) {
-        
+
         //check if the current point is selected
         if (i === selected_point_neighbourhood) {
 
@@ -175,15 +199,15 @@ class ScatterPlot {
         //handle points with same x or y value as selected point
         const dx = d[this.x] - selected[this.x];
         const dy = d[this.y] - selected[this.y]
-        
+
         if (i !== selected_point_recenter) {
-      
+
           if (dx < 0 && dy > 0) {
             //first quadrant
             color = "green";
           } else if (dx > 0 && dy > 0) {
             //second quadrant
-            color = "gray";
+            color = "orange";
           } else if (dx < 0 && dy < 0) {
             //third quadrant
             color = "purple";
