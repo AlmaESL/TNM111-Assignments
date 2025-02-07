@@ -15,10 +15,12 @@ function parseCSV(text) {
 
     //iterate through the rest of the rows
     for (let i = 1; i < lines.length; i++) {
+
+        //split each row
         const row = lines[i].split(",");
         const obj = {};
 
-        //iterate through the columns
+        //iterate each column
         headers.forEach((header, j) => {
             const num = Number(row[j]);
 
@@ -76,8 +78,10 @@ function clicking() {
             event.preventDefault();
             event.stopPropagation();
 
+            //get the index of the selected point
             const idx = Number(this.getAttribute("data-index"));
 
+            //check if the selected point is the same as the current selected point
             if (selected_point_neighbourhood === null || selected_point_neighbourhood !== idx) {
                 selected_point_neighbourhood = idx;
             } else {
@@ -111,6 +115,7 @@ document.getElementById("csv-file").addEventListener("change", function (e) {
         // Create the scatter plot instance.
         scatter_plot = new ScatterPlot(data, xCol, yCol, categoryCol);
         selected_point_recenter = null;
+
         renderPlot();
     };
     reader.readAsText(file);
