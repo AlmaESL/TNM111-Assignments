@@ -43,21 +43,45 @@ function focusPlusContext(data) {
 
     //<---------------------------------------------------------------------------------------------------->
 
-    /**
-     * Task 1 - Parse date with timeParse to year-month-day
-     */
+    /** 
+     //Task 1 - Parse date with timeParse to year-month-day
+    */
+    //parse the 
+    var parseDate = d3.timeParse("%Y-%m-%d");
 
-    /**
-     * Task 2 - Define scales and axes for scatterplot
-     */
+    /** 
+     //Task 2 - Define scales and axes for scatterplot
+    */
+    //compute the scale of the x axis
+    var xScale = d3.scaleTime().range([0, width]);
+
+    //compute the scale of the y axis 
+    var yScale = d3.scaleLinear().range([height, 0]);
+
+    //define the x axis 
+    var xAxis = d3.axisBottom(xScale);
+
+    //define the y axis 
+    var yAxis = d3.axisLeft(yScale);
 
     /**
      * Task 3 - Define scales and axes for context (Navigation through the data)
      */
+    //define the sacle for navigation in x direction 
+    var navXScale = d3.scaleTime().range([0, width]);
+
+    //define the scale for navigation in y direction
+    var navYScale = d3.scaleLinear().range([height2, 0]);
+
+    //define the x axis for navigation
+    var navXAxis = d3.axisBottom(xScale);
+
 
     /**
      * Task 4 - Define the brush for the context graph (Navigation)
      */
+    //create a brushing variable based on the width and height2 -> to get the min and max calues of the brush area
+    var brush = d3.brushX().extent([[0, 0], [width, height2]]).on("brush", brushed);
 
 
     //Setting scale parameters
@@ -72,7 +96,13 @@ function focusPlusContext(data) {
     /**
      * Task 5 - Set the axes scales, both for focus and context.
      */
+    //use .domain to set the axes scales for both graphs
+    xScale.domain([minDate, maxDate]);
+    yScale.domain([minMag, maxMag]);
 
+    //use .domain for the nav axes 
+    navXScale.domain([minDate, maxDate]);
+    navYScale.domain([minMag, maxMag]);
 
     //<---------------------------------------------------------------------------------------------------->
 
@@ -90,13 +120,17 @@ function focusPlusContext(data) {
     context.append("g")
         .attr("class", "axis axis--x")
         .attr("transform", "translate(0," + height2 + ")")
-        //here..
+        .call(navXAxis)
 
     /**
      * Task 7 - Plot the small dots on the context graph.
      */
     small_points = dots.selectAll("dot")
         //here...
+        .data(data.features)
+        .enter()
+        .append("circle")
+        .attr("class", "dotContext")
         .filter(function (d) { return d.properties.EQ_PRIMARY != null })
         .attr("cx", function (d) {
             return navXScale(parseDate(d.properties.Date));
@@ -105,10 +139,12 @@ function focusPlusContext(data) {
             return navYScale(d.properties.EQ_PRIMARY);
         });
 
-     /**
-      * Task 8 - Call plot function.
-      * plot(points,nr,nr) try to use different numbers for the scaling.
-      */
+    /**
+     * Task 8 - Call plot function.
+     * plot(points,nr,nr) try to use different numbers for the scaling.
+     */
+    var points = new Points();
+    points.plot(small_points, 5, 5)
 
 
     //<---------------------------------------------------------------------------------------------------->
@@ -169,31 +205,31 @@ function focusPlusContext(data) {
     mouseOut(selected_dots);
 
     //Mouse over function
-    function mouseOver(selected_dots){
+    function mouseOver(selected_dots) {
         selected_dots
-        .on("mouseover",function(d){
+            .on("mouseover", function (d) {
 
-            /**
-             * Task 13 - Update information in the "tooltip" by calling the tooltip function.
-             */
+                /**
+                 * Task 13 - Update information in the "tooltip" by calling the tooltip function.
+                 */
 
 
-            //Rescale the dots onhover
-            d3.select(this).attr('r', 15)
+                //Rescale the dots onhover
+                d3.select(this).attr('r', 15)
 
-            //Rescale the dots on the map.
-            curent_id = d3.select(this)._groups[0][0].__data__.id.toString()
-            d3.selectAll(".mapcircle")
-                .filter(function (d) { return d.id === curent_id; })
-                .attr('r', 15)
+                //Rescale the dots on the map.
+                curent_id = d3.select(this)._groups[0][0].__data__.id.toString()
+                d3.selectAll(".mapcircle")
+                    .filter(function (d) { return d.id === curent_id; })
+                    .attr('r', 15)
 
-            //Call map hover function if implemented!
-            //world_map.hovered(d.id);
-        });
+                //Call map hover function if implemented!
+                //world_map.hovered(d.id);
+            });
     }
 
     //Mouse out function
-    function mouseOut(selected_dots){
+    function mouseOut(selected_dots) {
         selected_dots
             .on("mouseout", function () {
                 //Returning to original characteristics
@@ -238,7 +274,7 @@ function focusPlusContext(data) {
     //<---------------------------------------------------------------------------------------------------->
 
     //Brush function for filtering through the data.
-    function brushed(){
+    function brushed() {
         //Function that updates scatter plot and map each time brush is used
         var s = d3.event.selection || navXScale.range();
         xScale.domain(s.map(navXScale.invert, navXScale));
@@ -265,7 +301,7 @@ function focusPlusContext(data) {
             /**
              * Remove comment for updating dots on the map.
              */
-            //curr_points_view = world_map.change_map_points(curr_view_erth)
+            curr_points_view = world_map.change_map_points(curr_view_erth)
         }
     }
 
@@ -274,7 +310,7 @@ function focusPlusContext(data) {
     /**
      * Function for hovering the points, implement if time allows.
      */
-    this.hovered = function(){
+    this.hovered = function () {
         console.log("If time allows you, implement something here!");
     }
 
