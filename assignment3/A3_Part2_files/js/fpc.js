@@ -120,6 +120,7 @@ function focusPlusContext(data) {
     context.append("g")
         .attr("class", "axis axis--x")
         .attr("transform", "translate(0," + height2 + ")")
+        //here...
         .call(navXAxis)
 
     /**
@@ -161,9 +162,16 @@ function focusPlusContext(data) {
      * Task 10 - Call x and y axis
      */
     focus.append("g")
-    //here..
+        //add attributes for class axis axis--x and transforming 0 to +height+
+        .attr("class", "axis axis--x")
+        .attr("transform", "translate(0," + height + ")")
+        //lastly call the x axis for the focus graph variable
+        .call(xAxis);
+
+    //call the y axis for the focus graph
     focus.append("g")
-    //here..
+        .attr("class", "axis axis--y")
+        .call(yAxis);
 
     //Add y axis label to the scatter plot
     d3.select(".legend")
@@ -183,7 +191,13 @@ function focusPlusContext(data) {
      * Task 11 - Plot the dots on the focus graph.
      */
     selected_dots = dots.selectAll("dot")
-        //here..
+        //use data.features with .enter and append circles and dot for selected points in the focus graph
+        .data(data.features)
+        .enter()
+        .append("circle")
+        .attr("class", "dot")
+        //set opacity for selected points 
+        .attr("opacity", 0.5)
         .filter(function (d) { return d.properties.EQ_PRIMARY != null })
         .attr("cx", function (d) {
             return xScale(parseDate(d.properties.Date));
@@ -194,8 +208,9 @@ function focusPlusContext(data) {
 
     /**
      * Task 12 - Call plot function
-     * plot(points,nr,nr) no need to send any integers!
+     
      */
+    points.plot(selected_dots, 1,1) //no need to send any integers!
 
     //<---------------------------------------------------------------------------------------------------->
 
@@ -270,6 +285,11 @@ function focusPlusContext(data) {
      */
 
     //here..
+    //append the brush to the context plot variable
+    context.append("g")
+        .attr("class", "brush")
+        .call(brush)
+        .call(brush.move, xScale.range());
 
     //<---------------------------------------------------------------------------------------------------->
 
