@@ -12,10 +12,17 @@ function worldMap(data) {
      * Task 14 - Create a leaflet map and put center to 10,15 with zoom scale of 1
      */
 
+    //create the map, centered at 10,15 and scaled to 1
+    var leaflet_map = L.map('mapid', { center: [10, 15], zoom: 1 });
+
     /**
      * Task 15 - Get the tileLayer from the link at the bottom of this file
      * and add it to the map created above.
     */
+
+    //adding the tile layer to the map, the tile layer is the background ie the map
+    tileLayer=L.tileLayer(map_link()).addTo(leaflet_map);
+
 
     /**
      * Task 16 - Create an svg call on top of the leaflet map.
@@ -23,10 +30,25 @@ function worldMap(data) {
      * This g tag will be needed later.
      */
 
+    //create the svg on top of the leaflet map that will hold the points
+    var svg_map = d3.select(leaflet_map.getPanes().overlayPane).append("svg");
+    //append a g tag on top of the svg which is for points so that points outside zoom window can be hidden when zooming
+    var g = svg_map.append("g").attr("class", "leaflet-zoom-hide");
+
     /**
      * Task 17 - Create a function that projects lat/lng points on the map.
      * Use latLngToLayerPoint, remember which goes where.
      */
+
+    //Function for projection of points onto the map
+    function projectPointsOnMap(x, y) {
+
+        //create a point from the latitudes (x) and longitudes (y) and return the point 
+        var point = leaflet_map.latLngToLayerPoint(new L.LatLng(y, x));
+
+        //apply this.stream on the point for its x and y
+        this.stream.point(point.x, point.y);
+    }
 
     /**
      * Task 18 - Now we need to transform all to the specific projection
@@ -34,7 +56,13 @@ function worldMap(data) {
      * {point:function.}
      * Create another variable names d3geoPath to project this transformation to it.
      */
-    //Transforming to the specific projection
+    
+    //geoTransform is a function that takes a point and transforms it to a specific projection, in this case given by the 
+    // projectPointsOnMap function 
+    var transform = d3.geoTransform({ point: projectPointsOnMap });
+    //d3path is a variable that projects the transformation, in this case given by the geoTransform which is projectPointsOnMap
+    var d3path = d3.geoPath().projection(transform);
+
 
     // similar to projectPoint this function converts lat/long to
     //svg coordinates except that it accepts a point from our
@@ -42,7 +70,7 @@ function worldMap(data) {
     function applyLatLngToLayer(d) {
         var x = d.geometry.coordinates[0];
         var y = d.geometry.coordinates[1];
-        //Remove comment when reached task 19
+        
         return leaflet_map.latLngToLayerPoint(new L.LatLng(y, x));
     }
 
@@ -54,25 +82,33 @@ function worldMap(data) {
      * select all circle from g tag and use data.features.
      * Also add a class called mapcircle and set opacity to 0.4
      */
-    //features for the points
+    //feature variable for plotting the dots on the map, select all circles from g tag and use data.features
+    var feature = g.selectAll("circle")
+        .data(data.features)
+        .enter()
+        .append("circle")
+        .attr("class", "mapcircle")
+        .attr("opacity", 0.5);
 
     /**
      * Task 20 - Call the plot function with feature variable
      * not integers needed.
      */
+    
+    points.plot(feature)
 
     //Redraw the dots each time we interact with the map
     //Remove comment tags when done with task 20
-    //leaflet_map.on("moveend", reset);
-    //reset();
+    leaflet_map.on("moveend", reset);
+    reset();
 
     //Mouseover
     //Remove comment tags when done with task 20
-    //mouseOver(feature);
-    //mouseOut(feature);
+    mouseOver(feature);
+    mouseOut(feature);
 
     //Mouse over function
-    function mouseOver(feature){
+    function mouseOver(feature) {
 
         feature
             .on("mouseover", function (d) {
@@ -88,7 +124,7 @@ function worldMap(data) {
     }
 
     //Mouse out function
-    function mouseOut(feature){
+    function mouseOut(feature) {
 
         feature
             .on("mouseout", function () {
@@ -159,7 +195,10 @@ function worldMap(data) {
      * Function for hovering the points, implement if time allows.
      */
     this.hovered = function (input_point) {
-        console.log("If time allows you, implement something here!");
+        //implement hovering info displaying 
+
+
+        // console.log("If time allows you, implement something here!");
     }
 
     //<---------------------------------------------------------------------------------------------------->

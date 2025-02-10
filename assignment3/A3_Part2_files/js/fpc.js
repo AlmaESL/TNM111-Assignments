@@ -144,7 +144,7 @@ function focusPlusContext(data) {
      * Task 8 - Call plot function.
      * plot(points,nr,nr) try to use different numbers for the scaling.
      */
-    var points = new Points();
+   
     points.plot(small_points, 5, 5)
 
 
@@ -208,8 +208,8 @@ function focusPlusContext(data) {
 
     /**
      * Task 12 - Call plot function
-     
      */
+    
     points.plot(selected_dots, 1,1) //no need to send any integers!
 
     //<---------------------------------------------------------------------------------------------------->
@@ -227,6 +227,8 @@ function focusPlusContext(data) {
                 /**
                  * Task 13 - Update information in the "tooltip" by calling the tooltip function.
                  */
+                points.tooltip(d)
+
 
 
                 //Rescale the dots onhover
@@ -239,7 +241,7 @@ function focusPlusContext(data) {
                     .attr('r', 15)
 
                 //Call map hover function if implemented!
-                //world_map.hovered(d.id);
+                world_map.hovered(d.id);
             });
     }
 
