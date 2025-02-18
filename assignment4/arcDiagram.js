@@ -21,7 +21,7 @@ function drawArcDiagram(nodes, links, orders) {
 
     //define svg dimensions 
     const width = 700;
-    const step = 14;
+    const step = 12;
     const marginTop = 20;
     const marginRight = 20;
     const marginBottom = 20;
