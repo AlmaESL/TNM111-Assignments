@@ -20,7 +20,7 @@ if (tooltip.empty()) {
 function drawArcDiagram(nodes, links, orders) {
 
     //define svg dimensions 
-    const width = 700;
+    const width = 600;
     const step = 12;
     const marginTop = 20;
     const marginRight = 20;
@@ -148,13 +148,19 @@ function drawArcDiagram(nodes, links, orders) {
       .hover path.primary { stroke: #242424; }
     `);
 
+    //update the chart if a new ordering has been selected 
     function update(order) {
+        //orderinng affects positioning in y dimension 
         y.domain(order);
+
+        //sort the label and path elements according to new prdering 
         label
             .sort((a, b) => d3.ascending(Y.get(a.id), Y.get(b.id)))
             .transition()
+            //animation duration on reordering
             .duration(750)
             .delay((d, i) => i * 20)
+            //animation easing
             .attrTween("transform", d => {
                 const i = d3.interpolateNumber(Y.get(d.id), y(d.id));
                 return t => {
@@ -163,7 +169,8 @@ function drawArcDiagram(nodes, links, orders) {
                     return `translate(${marginLeft},${yPos})`;
                 };
             });
-
+        
+        //update the paths with the new ordering
         path.transition()
             .duration(750 + nodes.length * 20)
             .attrTween("d", d => () => arc(d));
@@ -176,20 +183,20 @@ function drawArcDiagram(nodes, links, orders) {
 //load the json file connected to the user selection
 function loadEpisode(jsonFile) {
     d3.json(jsonFile).then(data => {
-        // Map nodes: use "name" as the id, keep the value and color.
+        //map nodes
         const nodes = data.nodes.map(d => ({
             id: d.name,
             value: d.value,
             colour: d.colour
         }));
-        // Convert link indices to use node ids.
+        //map links
         const links = data.links.map(d => ({
             source: nodes[d.source].id,
             target: nodes[d.target].id,
             value: d.value
         }));
 
-        // Compute two orderings:
+        //compute ordering after given selection
         const alphabetical = nodes.map(d => d.id).sort(d3.ascending);
         const occurrences = nodes
             .slice()
@@ -201,12 +208,11 @@ function loadEpisode(jsonFile) {
             ["occurrences", occurrences]
         ]);
 
-        // Store orders globally for use by the radio button event handlers.
+        //store ordering argument
         current_order = orders;
 
-        // Remove any previous chart.
+        // remove previous chart and re-render
         d3.select("#arc").selectAll("*").remove();
-        // Render the new chart and store its reference.
         current_chart = drawArcDiagram(nodes, links, orders);
         d3.select("#arc").append(() => current_chart);
     });
