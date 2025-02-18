@@ -26,8 +26,9 @@ function drawArcDiagram(nodes, links, orders) {
     const marginRight = 20;
     const marginBottom = 20;
     const marginLeft = 130;
-    const height = ((nodes.length - 1) * step + marginTop + marginBottom) * 2;
-    //position nodes on y-axis and print names 
+    const height = ((nodes.length - 1) * step + marginTop + marginBottom) * 1.5;
+    
+    //position nodes on y-axis and print names
     const y = d3.scalePoint(orders.get("alphabetical"), [marginTop, height - marginBottom]);
 
     //use node colors if they exist 
@@ -141,10 +142,10 @@ function drawArcDiagram(nodes, links, orders) {
     //on hover, change stroke and text colour
     svg.append("style").text(`
       .hover text { fill: #aaa; }
-      .hover g.primary text { font-weight: bold; fill: #333; }
-      .hover g.secondary text { fill: #333; }
+      .hover g.primary text { font-weight: bold; fill: #242424; }
+      .hover g.secondary text { fill: #242424; }
       .hover path { stroke: #ccc; }
-      .hover path.primary { stroke: #333; }
+      .hover path.primary { stroke: #242424; }
     `);
 
     function update(order) {
