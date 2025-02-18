@@ -27,7 +27,7 @@ function drawArcDiagram(nodes, links, orders) {
     const marginBottom = 20;
     const marginLeft = 130;
     const height = ((nodes.length - 1) * step + marginTop + marginBottom) * 1.5;
-    
+
     //position nodes on y-axis and print names
     const y = d3.scalePoint(orders.get("alphabetical"), [marginTop, height - marginBottom]);
 
@@ -77,10 +77,42 @@ function drawArcDiagram(nodes, links, orders) {
         .attr("stroke", d => sameColor(d))
         .attr("d", arc);
 
+    //add tooltip for link hovering
+    path
+        .on("pointerenter", function (event, d) {
+            //change stroke color to darkr on hover
+            d3.select(this)
+                .attr("stroke", d3.lab(sameColor(d)).darker(20));
+
+            //show link info 
+            tooltip.html(
+                `
+       Source: ${d.source}<br>
+       Target: ${d.target}<br>
+       Number of scenes together: ${d.value}`
+            )
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY + 10) + "px")
+                .transition()
+                .duration(200)
+                .style("opacity", 0.9);
+        })
+        .on("pointermove", function (event, d) {
+            tooltip.style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY + 10) + "px");
+        })
+        .on("pointerout", function (event, d) {
+            //revert stroke to original color
+            d3.select(this).attr("stroke", sameColor(d));
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", 0);
+        });
+
     //print the name labels and circles for the nodes 
     const label = svg.append("g")
         .attr("font-family", "sans-serif")
-        .attr("font-size", 14)
+        .attr("font-size", 13)
         .attr("text-anchor", "end")
         .selectAll("g")
         .data(nodes)
@@ -103,6 +135,8 @@ function drawArcDiagram(nodes, links, orders) {
         .attr("x", -marginLeft)
         .attr("y", -step / 2)
         .attr("pointer-events", "all")
+
+        //on hover, get tooltip info from nodes 
         .on("pointerenter", (event, d) => {
             svg.classed("hover", true);
             label.classed("primary", n => n === d);
@@ -110,12 +144,14 @@ function drawArcDiagram(nodes, links, orders) {
                 (n.id === source && d.id == target) ||
                 (n.id === target && d.id === source)
             )));
+            
+            //highlight the links that connect to the hovered node
             path.classed("primary", l => l.source === d.id || l.target === d.id)
                 .filter(".primary")
                 .raise();
 
             //show the tooltip with node info
-            tooltip.html(`<strong>${d.id}</strong><br>Occurrences: ${d.value}`)
+            tooltip.html(`${d.id}<br>Number of occurrences: ${d.value}`)
                 .style("left", (event.pageX + 10) + "px")
                 .style("top", (event.pageY + 10) + "px")
                 .transition()
@@ -136,7 +172,7 @@ function drawArcDiagram(nodes, links, orders) {
             tooltip.transition()
                 .duration(200)
                 .style("opacity", 0);
-        
+
         });
 
     //on hover, change stroke and text colour
@@ -169,7 +205,7 @@ function drawArcDiagram(nodes, links, orders) {
                     return `translate(${marginLeft},${yPos})`;
                 };
             });
-        
+
         //update the paths with the new ordering
         path.transition()
             .duration(750 + nodes.length * 20)
