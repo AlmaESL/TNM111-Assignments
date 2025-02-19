@@ -1,60 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <title>Star Wars Visualization</title>
-    <script src="https://d3js.org/d3.v6.min.js"></script>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <title>Star Wars Visualization</title>
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
-    <header>
-        <!-- <img src="images/rebel_logo.jpeg" alt="Rebel logo"> -->
-        Star Wars Visualization
-        <!-- <img src="images/imperial_logo.jpeg" alt="imperial logo"> -->
-    </header>
+  <header>
+    Star Wars Visualization
+  </header>
 
-    
-    <div class="container">
-
-        <div class="networkDiv">
-            <div id="network"></div>
-            <svg width="800" height="800"></svg>
-            <script src="drawRadialDiagram.js"></script>
-        </div>
-
-
-        <div class="arcDiv">
-            <div id="arc"></div>
-        </div>
-
-
-        <div class="gui">
-
-            <label for="episode-selector">Select Episode:</label>
-            <select id="episode-selector">
-                <option value="json/starwars-episode-1-interactions-allCharacters.json">Episode 1</option>
-                <option value="json/starwars-episode-2-interactions-allCharacters.json">Episode 2</option>
-                <option value="json/starwars-episode-3-interactions-allCharacters.json">Episode 3</option>
-                <option value="json/starwars-episode-4-interactions-allCharacters.json">Episode 4</option>
-                <option value="json/starwars-episode-5-interactions-allCharacters.json">Episode 5</option>
-                <option value="json/starwars-episode-6-interactions-allCharacters.json">Episode 6</option>
-                <option value="json/starwars-episode-7-interactions-allCharacters.json">Episode 7</option>
-                <option value="json/starwars-full-interactions-allCharacters.json">All Episodes</option> 
-            </select>
-
-            <!-- <hr>
-            <p>Order by:</p>
-            <input type="radio" id="alphabetical" name="order" value="alphabetical" checked>
-            <label for="alphabetical">By name</label>
-            <br>
-            <input type="radio" id="occurrences" name="order" value="occurrences">
-            <label for="occurrences">By appearances</label> -->
-        </div>
+  <div class="container">
+    <div class="networkDiv">
+      <!-- This container will hold one instance of the radial diagram -->
+      <div id="network">
+        <h3>View 1</h3>
+      </div>
     </div>
 
+    <div class="arcDiv">
+      <!-- This container will hold the second instance of the radial diagram -->
+      <div id="arc">
+        <h3>View 2</h3>
+      </div>
+    </div>
 
+    <div class="gui">
+        <!-- controls for view 1-->
+        <h5>Controls view 1</h5>
+      <label for="episode-selector1">Select Episode:</label>
+      <select id="episode-selector1">
+       
+        <option value="json/starwars-full-interactions-allCharacters.json">All Episodes</option> 
+        <option value="json/starwars-episode-1-interactions-allCharacters.json">Episode 1</option>
+        <option value="json/starwars-episode-2-interactions-allCharacters.json">Episode 2</option>
+        <option value="json/starwars-episode-3-interactions-allCharacters.json">Episode 3</option>
+        <option value="json/starwars-episode-4-interactions-allCharacters.json">Episode 4</option>
+        <option value="json/starwars-episode-5-interactions-allCharacters.json">Episode 5</option>
+        <option value="json/starwars-episode-6-interactions-allCharacters.json">Episode 6</option>
+        <option value="json/starwars-episode-7-interactions-allCharacters.json">Episode 7</option>
+      </select>
+
+      <br><br>
+
+      <!-- controls for view 2 -->
+      <h5>Controls view 2</h5>
+      <label for="episode-selector2">Select Episode:</label>
+      <select id="episode-selector2">
+     
+        <option value="json/starwars-full-interactions-allCharacters.json">All Episodes</option> 
+        <option value="json/starwars-episode-1-interactions-allCharacters.json">Episode 1</option>
+        <option value="json/starwars-episode-2-interactions-allCharacters.json">Episode 2</option>
+        <option value="json/starwars-episode-3-interactions-allCharacters.json">Episode 3</option>
+        <option value="json/starwars-episode-4-interactions-allCharacters.json">Episode 4</option>
+        <option value="json/starwars-episode-5-interactions-allCharacters.json">Episode 5</option>
+        <option value="json/starwars-episode-6-interactions-allCharacters.json">Episode 6</option>
+        <option value="json/starwars-episode-7-interactions-allCharacters.json">Episode 7</option>
+      </select>
+
+    </div>
+  </div>
+
+  <!-- Include the radial diagram script once -->
+  <script src="drawRadialDiagram.js"></script>
+  <!-- Call the function twice, once for each container -->
+  <script>
+    drawRadialDiagram("#network");
+    drawRadialDiagram("#arc");
+  </script>
 </body>
-
 </html>

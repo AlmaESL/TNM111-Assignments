@@ -5,7 +5,7 @@ body {
 
 header {
     text-align: center;
-    padding: 20px;
+    padding: 10px;
     background: #222;
     color: #fff;
     font-size: 2em;
@@ -41,4 +41,9 @@ header img {
     padding: 5px;
     box-sizing: border-box;
     background-color: #e8e8e8;
+}
+
+
+svg text {
+    font-size: 12px;
 }
