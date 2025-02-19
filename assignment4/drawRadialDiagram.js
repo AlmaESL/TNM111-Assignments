@@ -1,52 +1,97 @@
+// The main drawing function now accepts three parameters:
+// containerSelector: the container in which to draw the diagram
+// jsonFile: the path to the JSON file to load
+// order: either "alphabetical" or "occurrences"
 (function () {
-  // The main drawing function now accepts three parameters:
-  // containerSelector: the container in which to draw the diagram
-  // jsonFile: the path to the JSON file to load
-  // order: either "alphabetical" or "occurrences"
-  function drawRadialDiagram(containerSelector, jsonFile = "json/starwars-full-interactions-allCharacters.json", order = "alphabetical") {
-    // Remove any existing SVG in the container.
-    const container = d3.select(containerSelector);
-    container.select("svg").remove();
 
-    // Create a local tooltip specific to this container.
-    let localTooltip = container.select(".tooltip");
-    if (localTooltip.empty()) {
-      localTooltip = container
-        .append("div")
-        .attr("class", "tooltip")
-        .style("position", "absolute")
-        .style("background", "#fff")
-        .style("padding", "5px")
-        .style("border", "1px solid #ccc")
-        .style("border-radius", "4px")
-        .style("pointer-events", "none")
-        .style("opacity", 0);
+
+  /**
+   * Draws a radial diagram with undirected interactions from a JSON file.
+   *
+   * @param {string} containerSelector - The container in which to draw the diagram.
+   * @param {string} [jsonFile="json/starwars-full-interactions-allCharacters.json"] - The path to the JSON file to load.
+   * @param {"alphabetical"|"occurrences"} [order="alphabetical"] - The order in which to arrange the nodes.
+   */
+  function drawRadialDiagram(
+    containerSelector,
+    jsonFile = "json/starwars-full-interactions-allCharacters.json",
+    order = "alphabetical"
+  ) {
+
+    // Select container in the html file in which to draw the diagram
+    const container = d3.select(containerSelector);
+
+    // ─── SAVE OLD POSITIONS FOR TRANSITIONS ───────────────────────────────
+    let oldPositions = {};
+    let oldCustomEdgePaths = {};
+    let oldDefaultEdgePaths = {};
+
+    const oldSvg = container.select("svg");
+    if (!oldSvg.empty()) {
+      // For nodes: they have been given a class "node"
+      oldSvg.selectAll("g.node").each(function (d) {
+        // Save the transform for each node
+        oldPositions[d.data.name] = d3.select(this).attr("transform");
+      });
+      // For custom edges:
+      oldSvg.selectAll("path.custom.edge").each(function (d) {
+
+        // Save the path for each custom edge
+        const sourceName = d.source.data.name;
+        const targetName = d.target.data.name;
+
+        const key =
+          sourceName < targetName
+            ? `${sourceName}-${targetName}`
+            : `${targetName}-${sourceName}`;
+        oldCustomEdgePaths[key] = d3.select(this).attr("d");
+      });
+
+      // For default edges:
+      oldSvg.selectAll("path.default.edge").each(function (d) {
+        const sourceName = d.edge.source.data.name;
+        const targetName = d.edge.target.data.name;
+        const key =
+          sourceName < targetName
+            ? `${sourceName}-${targetName}`
+            : `${targetName}-${sourceName}`;
+        oldDefaultEdgePaths[key] = d3.select(this).attr("d");
+      });
     }
 
-    // ─── DIMENSIONS, SVG, & CLUSTER LAYOUT ─────────────────────────
+    // Remove any existing SVG in the container
+    container.select("svg").remove();
+
+    // ─── DIMENSIONS, SVG, & CLUSTER LAYOUT ───────────────────────────────
     const width = 600,
       height = 700,
-      radius = width/1.75,
+      radius = width / 1.75,
       k = 6; // number of segments used for edge bundling
 
-    // Create an SVG element inside the container.
+    // Create an SVG element inside the container
     const svg = container
       .append("svg")
       .attr("width", width)
       .attr("height", height)
       .append("g")
+      // Center the SVG element
       .attr("transform", `translate(${width / 2},${height / 2})`);
 
+    // Create cluster layout with specified size 
     const cluster = d3.cluster().size([360, radius - 150]);
 
     // ─── RADIAL LINE GENERATOR WITH BUNDLING CURVE ───────────────────────────────
     const line = d3
       .lineRadial()
+      // Generate radial curves with a bundle curve
       .curve(d3.curveBundle.beta(0.85))
+      // Convert to radians
       .angle((d) => d.x * (Math.PI / 180))
       .radius((d) => d.y);
 
     // ─── CUSTOM PATH, LINE, & BEZIERCURVE CLASSES ───────────────────────────────
+
+    // Class of line segements for links between nodes
     class Path {
       constructor() {
         this._ = [];
@@ -64,6 +109,18 @@
           new BezierCurve(this._m, [ax, ay], [bx, by], (this._m = [x, y]))
         );
       }
+      /**
+       * Splits the current Path instance into two sub-paths at the midpoint.
+       * If the number of sub-paths is odd, the middle segment is split and shared
+       * between the two resulting sub-paths. This function can recursively split
+       * the path into more sub-paths if 'k' is greater than 1, yielding each
+       * sub-path generated.
+       *
+       * @param {number} [k=0] - The number of recursive splits to perform. A value
+       *   of 0 means no additional splits, returning only the initial division.
+       * @yields {Path} - Each sub-path created by splitting the original path.
+       */
+
       *split(k = 0) {
         const n = this._.length;
         const i = Math.floor(n / 2);
@@ -77,6 +134,7 @@
           a._.push(ab);
           b._.unshift(ba);
         }
+        // Check if we need to split further
         if (k > 1) {
           yield* a.split(k - 1);
           yield* b.split(k - 1);
@@ -90,11 +148,23 @@
       }
     }
 
+
     class Line {
       constructor(a, b) {
         this.a = a;
         this.b = b;
       }
+      /**
+       * Splits the current Line instance into two sub-lines at the midpoint.
+       * The midpoint is calculated as the average of the start and end points.
+       * This function returns an array containing the two resulting Line
+       * instances, where the first spans from the start point to the midpoint,
+       * and the second spans from the midpoint to the end point.
+       *
+       * @return {[Line, Line]} An array containing the two sub-lines created
+       *   by splitting the original line at its midpoint.
+       */
+
       split() {
         const { a, b } = this;
         const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
@@ -105,6 +175,7 @@
       }
     }
 
+    // Class of Bezier curves for links between nodes, values are control points
     const BezierCurve = (() => {
       const l1 = [4 / 8, 4 / 8, 0 / 8, 0 / 8];
       const l2 = [2 / 8, 4 / 8, 2 / 8, 0 / 8];
@@ -112,6 +183,25 @@
       const r1 = [0 / 8, 2 / 8, 4 / 8, 2 / 8];
       const r2 = [0 / 8, 0 / 8, 4 / 8, 4 / 8];
 
+      /**
+       * Computes the dot product of the given control points and coefficients.
+       *
+       * @param {[number, number, number, number]} coefficients - Coefficients
+       *   to use in the dot product.
+       * @param {{a: [number, number], b: [number, number], c: [number, number], d: [number, number]}} controlPoints
+       *   - Control points to use in the dot product.
+       * @return {[number, number]} The computed dot product.
+       */
+
+
+      /**
+       * Computes the dot product of the given control points and coefficients.
+       *
+       * @param {Array<number>} coefficients - Coefficients to use in the dot product.
+       * @param {{a: Array<number>, b: Array<number>, c: Array<number>, d: Array<number>}} controlPoints -
+       *   Control points to use in the dot product.
+       * @return {Array<number>} The computed dot product.
+       */
       function dot([ka, kb, kc, kd], { a, b, c, d }) {
         return [
           ka * a[0] + kb * b[0] + kc * c[0] + kd * d[0],
@@ -140,6 +230,15 @@
     })();
 
     // ─── HELPER: ID FUNCTION ──────────────────────────────────────────────────────
+
+    /**
+     * Computes the identifier for the given node in the tree by concatenating
+     * its name with the names of its ancestors.
+     *
+     * @param {{parent: ?Object, data: {name: string}}} node - Node to compute
+     *   the identifier for.
+     * @return {string} The identifier for the given node.
+     */
     function id(node) {
       return node.parent && node.parent.data.name
         ? id(node.parent) + "." + node.data.name
@@ -147,6 +246,16 @@
     }
 
     // ─── BUNDLED PATH GENERATOR ───────────────────────────────────────────────────
+
+    /**
+     * Computes a bundled path for the given source and target nodes by
+     * concatenating the paths from the source to the target. The path is
+     * computed in the context of a new Path object, which is returned.
+     *
+     * @param {Array.<Object>} [source, target] - Source and target nodes to
+     *   compute the path for.
+     * @return {Path} The computed bundled path.
+     */
     const bundledPath = ([source, target]) => {
       const p = new Path();
       line.context(p)(source.path(target));
@@ -157,7 +266,7 @@
     fetch(jsonFile)
       .then((response) => response.json())
       .then((data) => {
-        // Pre-calculate occurrence counts for each node.
+        // Pre-calculate occurrence counts for each node
         data.nodes.forEach((d) => (d.count = 0));
         data.links.forEach((link) => {
           data.nodes[link.source].count += 1;
@@ -165,30 +274,37 @@
         });
 
         // Build a dummy root so that each node becomes a child,
-        // and sort the children based on the chosen ordering.
+        // and sort the children based on the chosen ordering
         const root = d3
           .hierarchy({ name: "", children: data.nodes })
           .sum((d) => d.value)
           .sort((a, b) => {
+            // Sort the nodes after the children have been added and after ordering selection
             if (order === "alphabetical") {
               return d3.ascending(a.data.name, b.data.name);
             } else if (order === "occurrences") {
-              return d3.descending(a.data.count, b.data.count) || d3.ascending(a.data.name, b.data.name);
+              return (
+                d3.descending(a.data.count, b.data.count) ||
+                d3.ascending(a.data.name, b.data.name)
+              );
             }
             return 0;
           });
 
-        // Compute the cluster layout.
+        // Compute the cluster layout
         cluster(root);
 
-        // Build a mapping from node name to the corresponding leaf node.
+        // Build a mapping from node name to the corresponding leaf node
         const nameToNode = new Map(root.leaves().map((d) => [d.data.name, d]));
 
-        // Build a unique, undirected edge for each link.
+        // Build a unique, undirected edge for each link
         const edgesMap = new Map();
         data.links.forEach((link) => {
           const sourceName = data.nodes[link.source].name;
           const targetName = data.nodes[link.target].name;
+
+          // Ensure that the source name is always lexicographically less than the target name
+          // because the edge key is based on the concatenation of the two names
           const key =
             sourceName < targetName
               ? `${sourceName}-${targetName}`
@@ -200,6 +316,7 @@
               edgesMap.set(key, {
                 source,
                 target,
+                // Store the path for the edge, thats why we bundle the path
                 path: bundledPath([source, target]),
                 value: link.value || 1,
               });
@@ -211,14 +328,14 @@
         });
         const edges = Array.from(edgesMap.values());
 
-        // Compute an interaction count for each node (if not already computed).
+        // Compute an interaction count for each node (if not already computed)
         root.leaves().forEach((node) => {
           node.data.value = edges.filter(
             (e) => e.source === node || e.target === node
           ).length;
         });
 
-        // Separate edges into two groups.
+        // Separate edges into two groups
         const customEdges = edges.filter(
           (e) => e.source.data.colour !== "#808080"
         );
@@ -226,20 +343,40 @@
           (e) => e.source.data.colour === "#808080"
         );
 
-        // Draw custom edges.
-        svg
+        // ─── DRAW CUSTOM EDGES WITH TRANSITIONS ─────────────────────────────
+
+        // Draw custom edges with transitions 
+        const customEdgeSelection = svg
           .append("g")
           .attr("fill", "none")
-          .selectAll("path.custom")
-          .data(customEdges)
-          .enter()
-          .append("path")
+          .selectAll("path.custom.edge")
+          .data(customEdges, (d) => {
+            const sourceName = d.source.data.name;
+            const targetName = d.target.data.name;
+            return sourceName < targetName
+              ? `${sourceName}-${targetName}`
+              : `${targetName}-${sourceName}`;
+          })
+          .join("path")
           .attr("class", "custom edge")
-          .attr("d", (d) => d.path.toString())
           .style("stroke", (d) => d.source.data.colour)
-          .attr("data-original-stroke", (d) => d.source.data.colour);
+          .attr("data-original-stroke", (d) => d.source.data.colour)
+          .attr("d", (d) => {
+            const sourceName = d.source.data.name;
+            const targetName = d.target.data.name;
+            const key =
+              sourceName < targetName
+                ? `${sourceName}-${targetName}`
+                : `${targetName}-${sourceName}`;
+            return oldCustomEdgePaths[key] || d.path.toString();
+          });
 
-        // Draw default edges.
+        customEdgeSelection
+          .transition()
+          .duration(750)
+          .attr("d", (d) => d.path.toString());
+
+        // ─── DRAW DEFAULT EDGES WITH TRANSITIONS ────────────────────────────
         const defaultEdgesData = defaultEdges.map((edge) => {
           return {
             segments: Array.from(edge.path.split(k)),
@@ -247,49 +384,99 @@
           };
         });
 
-        svg
+        const defaultEdgeSelection = svg
           .append("g")
           .attr("fill", "none")
-          .selectAll("path.default")
-          .data(defaultEdgesData)
+          .selectAll("path.default.edge")
+          .data(defaultEdgesData, (d) => {
+            const sourceName = d.edge.source.data.name;
+            const targetName = d.edge.target.data.name;
+            return sourceName < targetName
+              ? `${sourceName}-${targetName}`
+              : `${targetName}-${sourceName}`;
+          })
           .join("path")
           .attr("class", "default edge")
           .style("mix-blend-mode", "darken")
           .attr("stroke", "#ccc")
           .attr("data-original-stroke", "#ccc")
+          .attr("d", (d) => {
+            const sourceName = d.edge.source.data.name;
+            const targetName = d.edge.target.data.name;
+            const key =
+              sourceName < targetName
+                ? `${sourceName}-${targetName}`
+                : `${targetName}-${sourceName}`;
+            return oldDefaultEdgePaths[key] || d.segments.join("");
+          });
+
+        defaultEdgeSelection
+          .transition()
+          .duration(750)
           .attr("d", (d) => d.segments.join(""));
 
-        // ─── DRAW THE NODES AND ADD LABELS ───────────────────────────────────────
+        // ─── DRAW THE NODES AND ADD LABELS WITH TRANSITIONS ───────────────────
         const node = svg
           .append("g")
-          .selectAll("g")
-          .data(root.leaves())
+          .attr("class", "nodes")
+          .selectAll("g.node")
+          .data(root.leaves(), (d) => d.data.name)
           .join("g")
-          .attr("transform", (d) => `rotate(${d.x - 90}) translate(${d.y},0)`);
+          .attr("class", "node")
+          .attr("transform", (d) => {
+            // If there’s an old position for this node, start there
+            return (
+              oldPositions[d.data.name] ||
+              `rotate(${d.x - 90}) translate(${d.y},0)`
+            );
+          });
 
         node
           .append("circle")
           .attr("r", 4)
           .style("fill", (d) => d.data.colour);
 
-        // Make the labels smaller by setting a reduced font size.
         node
           .append("text")
           .attr("dy", ".31em")
           .style("font-size", "8px")
           .style("font-weight", "bold")
           .style("fill", (d) => d.data.colour)
+          // Position the text outside the circle
           .attr("x", (d) => (d.x < 180 ? 6 : -6))
           .attr("text-anchor", (d) => (d.x < 180 ? "start" : "end"))
           .attr("transform", (d) => (d.x < 180 ? null : "rotate(180)"))
           .text((d) => d.data.name);
 
+        // Transition nodes to their new positions
+        node
+          .transition()
+          .duration(750)
+          .attr("transform", (d) => `rotate(${d.x - 90}) translate(${d.y},0)`);
+
         // ─── NODE HOVER INTERACTIVITY & TOOLTIP ─────────────────────────────
+        // Create a local tooltip specific to this container
+        let localTooltip = container.select(".tooltip");
+        if (localTooltip.empty()) {
+          localTooltip = container
+            .append("div")
+            .attr("class", "tooltip")
+            .style("position", "absolute")
+            .style("background", "#fff")
+            .style("padding", "5px")
+            .style("border", "1px solid #ccc")
+            .style("border-radius", "4px")
+            .style("pointer-events", "none")
+            .style("opacity", 0);
+        }
+
         node
           .on("pointerenter", function (event, d) {
-            const hoveredColor = d.data.colour === "#808080" ? "red" : d.data.colour;
+            const hoveredColor =
+              d.data.colour === "#808080" ? "red" : d.data.colour;
             const hoveredID = id(d);
-            svg.selectAll("path.edge")
+            svg
+              .selectAll("path.edge")
               .style("opacity", function (dd) {
                 const e = dd.edge ? dd.edge : dd;
                 return id(e.source) === hoveredID || id(e.target) === hoveredID
@@ -318,7 +505,8 @@
               .style("top", event.pageY + 10 + "px");
           })
           .on("pointerleave", function () {
-            svg.selectAll("path.edge")
+            svg
+              .selectAll("path.edge")
               .style("opacity", 1)
               .style("stroke", function (dd) {
                 const e = dd.edge ? dd.edge : dd;
@@ -330,7 +518,8 @@
         // ─── EDGE HOVER INTERACTIVITY: FADE OTHER EDGES & TOOLTIP ─────────────
         svg.selectAll("path.edge")
           .on("pointerenter", function (event, d) {
-            svg.selectAll("path.edge")
+            svg
+              .selectAll("path.edge")
               .filter(function () {
                 return this !== event.currentTarget;
               })
@@ -360,7 +549,8 @@
               .style("top", event.pageY + 10 + "px");
           })
           .on("pointerleave", function () {
-            svg.selectAll("path.edge")
+            svg
+              .selectAll("path.edge")
               .transition()
               .duration(200)
               .style("opacity", 1)
@@ -376,15 +566,15 @@
       );
   }
 
-  // Expose the function globally.
+  // Expose the function globally
   window.drawRadialDiagram = drawRadialDiagram;
 
   // ─── INITIAL DRAWING & EVENT LISTENERS FOR DROPDOWNS & RADIO BUTTONS ─────────
-  // Episode selectors for each view.
+  // Episode selectors for each view
   const sel1 = document.getElementById("episode-selector1");
   const sel2 = document.getElementById("episode-selector2");
 
-  // Get the current ordering from each view's radio buttons.
+  // Get the current ordering from each view's radio buttons
   const getOrder = (name) => {
     return document.querySelector(`input[name="${name}"]:checked`).value;
   };
@@ -401,16 +591,16 @@
     drawRadialDiagram("#arc", this.value, getOrder("order2"));
   });
 
-  // Add event listeners for the ordering radio buttons in each view.
+  // Add event listeners for the ordering radio buttons in each view
   const order1Radios = document.querySelectorAll('input[name="order1"]');
-  order1Radios.forEach(radio => {
+  order1Radios.forEach((radio) => {
     radio.addEventListener("change", function () {
       drawRadialDiagram("#network", sel1.value, getOrder("order1"));
     });
   });
 
   const order2Radios = document.querySelectorAll('input[name="order2"]');
-  order2Radios.forEach(radio => {
+  order2Radios.forEach((radio) => {
     radio.addEventListener("change", function () {
       drawRadialDiagram("#arc", sel2.value, getOrder("order2"));
     });
