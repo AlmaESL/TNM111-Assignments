@@ -1,5 +1,4 @@
 // ─── DIMENSIONS, SVG, & CLUSTER LAYOUT ─────────────────────────────────────────
-
 const width = 700,
   height = 700,
   radius = width / 2,
@@ -15,7 +14,6 @@ const svg = d3
 const cluster = d3.cluster().size([360, radius - 150]);
 
 // ─── RADIAL LINE GENERATOR WITH BUNDLING CURVE ───────────────────────────────
-
 const line = d3
   .lineRadial()
   .curve(d3.curveBundle.beta(0.85))
@@ -23,7 +21,6 @@ const line = d3
   .radius((d) => d.y);
 
 // ─── CUSTOM PATH, LINE, & BEZIERCURVE CLASSES ───────────────────────────────
-
 class Path {
   constructor() {
     this._ = [];
@@ -116,76 +113,69 @@ const BezierCurve = (() => {
   };
 })();
 
-// ─── COLOR FUNCTION ───────────────────────────────────────────────────────────
-
-const color = (t) => d3.interpolateRdBu(1 - t);
-
-// ─── HELPERS: ID & BILINK ─────────────────────────────────────────────────────
-
+// ─── HELPER: ID FUNCTION ──────────────────────────────────────────────────────
 function id(node) {
   return node.parent && node.parent.data.name
     ? id(node.parent) + "." + node.data.name
     : node.data.name;
 }
 
-function bilink(root) {
-  const map = new Map(root.leaves().map((d) => [id(d), d]));
-  for (const d of root.leaves()) {
-    d.incoming = [];
-    d.outgoing = d.data.imports.map((i) => [d, map.get(i)]);
-  }
-  for (const d of root.leaves()) {
-    for (const o of d.outgoing) {
-      if (o[1]) o[1].incoming.push(o);
-    }
-  }
-  return root;
-}
-
 // ─── BUNDLED PATH GENERATOR ───────────────────────────────────────────────────
-
 const bundledPath = ([source, target]) => {
   const p = new Path();
   line.context(p)(source.path(target));
   return p;
 };
 
-// ─── MAIN DRAW FUNCTION WITH HOVER INTERACTIVITY ─────────────────────────────
-
+// ─── MAIN DRAW FUNCTION WITH UNDIRECTED INTERACTIONS ─────────────────────────
 function drawRadialDiagram() {
   fetch("json/starwars-full-interactions-allCharacters.json")
     .then((response) => response.json())
     .then((data) => {
-      // Prepare data: initialize an empty imports array on every node.
-      data.nodes.forEach((n) => {
-        n.imports = [];
-      });
-      // For each link (by node indices), add the target node’s name to the source node's imports.
-      data.links.forEach((link) => {
-        data.nodes[link.source].imports.push(data.nodes[link.target].name);
-      });
-
       // Create a dummy root so that each node becomes a child.
       const root = d3
         .hierarchy({ name: "", children: data.nodes })
         .sum((d) => d.value);
 
-      // Add incoming/outgoing link arrays.
-      const rootWithLinks = bilink(root);
-
       // Compute the cluster layout.
-      cluster(rootWithLinks);
+      cluster(root);
 
-      // Build an array of edge objects that include source, target, and bundled path.
-      const edges = rootWithLinks.leaves().flatMap((leaf) =>
-        leaf.outgoing.map((link) => ({
-          source: leaf,
-          target: link[1],
-          path: bundledPath(link),
-        }))
-      );
+      // Build a mapping from node name to the corresponding leaf node.
+      const nameToNode = new Map(root.leaves().map((d) => [d.data.name, d]));
 
-      // Separate edges based on the source node's colour.
+      // Build a unique, undirected edge for each link.
+      // Using a Map with a combined key prevents duplicates.
+      const edgesMap = new Map();
+      data.links.forEach((link) => {
+        const sourceName = data.nodes[link.source].name;
+        const targetName = data.nodes[link.target].name;
+        // Order names to have a consistent key (e.g. "A-B" rather than "B-A")
+        const key =
+          sourceName < targetName
+            ? `${sourceName}-${targetName}`
+            : `${targetName}-${sourceName}`;
+        if (!edgesMap.has(key)) {
+          const source = nameToNode.get(sourceName);
+          const target = nameToNode.get(targetName);
+          if (source && target) {
+            edgesMap.set(key, {
+              source,
+              target,
+              path: bundledPath([source, target]),
+            });
+          }
+        }
+      });
+      const edges = Array.from(edgesMap.values());
+
+      // Compute an interaction count for each node.
+      root.leaves().forEach((node) => {
+        node.data.value = edges.filter(
+          (e) => e.source === node || e.target === node
+        ).length;
+      });
+
+      // Separate edges into two groups.
       const customEdges = edges.filter(
         (e) => e.source.data.colour !== "#808080"
       );
@@ -193,7 +183,7 @@ function drawRadialDiagram() {
         (e) => e.source.data.colour === "#808080"
       );
 
-      // Draw custom edges (drawn as one path per edge).
+      // Draw custom edges (one path per edge).
       svg
         .append("g")
         .attr("fill", "none")
@@ -203,90 +193,97 @@ function drawRadialDiagram() {
         .append("path")
         .attr("class", "custom edge")
         .attr("d", (d) => d.path.toString())
+        // Store the original stroke (the source's color) for restoration.
         .style("stroke", (d) => d.source.data.colour)
-        .attr("data-original-stroke", (d) => d.source.data.colour)
-        .style("mix-blend-mode", "darken");
+        .attr("data-original-stroke", (d) => d.source.data.colour);
+      // .style("mix-blend-mode", "darken"); // optional
 
-      // Draw default edges (using segmentation for bundling).
+      // For default edges, bind an object that includes the original edge.
+      const defaultEdgesData = defaultEdges.map((edge) => {
+        return {
+          segments: Array.from(edge.path.split(k)),
+          edge: edge, // store the original edge object
+        };
+      });
+
       svg
         .append("g")
         .attr("fill", "none")
         .selectAll("path.default")
-        .data(
-          d3.transpose(defaultEdges.map((e) => Array.from(e.path.split(k))))
-        )
+        .data(defaultEdgesData)
         .join("path")
         .attr("class", "default edge")
         .style("mix-blend-mode", "darken")
-        .attr("stroke", (d, i) => color(d3.easeQuad(i / ((1 << k) - 1))))
-        .attr("data-original-stroke", (d, i) =>
-          color(d3.easeQuad(i / ((1 << k) - 1)))
-        )
-        .attr("d", (d) => d.join(""));
+        // Set the default stroke to grey.
+        .attr("stroke", "#ccc")
+        .attr("data-original-stroke", "#ccc")
+        .attr("d", (d) => d.segments.join(""));
 
       // Draw the nodes and add labels.
       const node = svg
         .append("g")
         .selectAll("g")
-        .data(rootWithLinks.leaves())
+        .data(root.leaves())
         .join("g")
         .attr("transform", (d) => `rotate(${d.x - 90}) translate(${d.y},0)`);
 
       node
         .append("circle")
-        .attr("r", 3)
+        .attr("r", 5)
         .style("fill", (d) => d.data.colour);
 
       node
         .append("text")
         .attr("dy", ".31em")
+        .style("fill", (d) => d.data.colour)
         .attr("x", (d) => (d.x < 180 ? 6 : -6))
         .attr("text-anchor", (d) => (d.x < 180 ? "start" : "end"))
         .attr("transform", (d) => (d.x < 180 ? null : "rotate(180)"))
         .text((d) => d.data.name)
         .call((text) =>
-          text.append("title").text(
-            (d) => `${id(d)}
-${d.outgoing.length} outgoing
-${d.incoming.length} incoming`
-          )
+          text
+            .append("title")
+            .text((d) => `Number of scenes appeared in: ${d.data.value}. `)
         );
 
       // ─── HOVER INTERACTIVITY ON NODES ──────────────────────────────────────
-      // When hovering over a node, we adjust the edge styles:
-      // - If the hovered node is gray, connected edges become red.
-      // - If the hovered node is colored, connected edges show in their original stroke.
-      // Non-connected edges become grayed out.
-
       node
         .on("mouseover", function (event, d) {
+          // Determine the hovered color:
+          // If the hovered node is gray (#808080), use red; otherwise, use the node's color.
+          const hoveredColor =
+            d.data.colour === "#808080" ? "red" : d.data.colour;
           const hoveredID = id(d);
-          const isHoveredGray = d.data.colour === "#808080";
           d3.selectAll("path.edge")
-            .style("opacity", function (e) {
+            .style("opacity", function (dd) {
+              // For default edges, the original edge is stored in dd.edge;
+              // for custom edges, dd is already the edge object.
+              const e = dd.edge ? dd.edge : dd;
               return id(e.source) === hoveredID || id(e.target) === hoveredID
                 ? 1
-                : 0.1;
+                : 0.01;
             })
-            .style("stroke", function (e) {
-              if (id(e.source) === hoveredID || id(e.target) === hoveredID) {
-                return isHoveredGray
-                  ? "red"
-                  : d3.select(this).attr("data-original-stroke");
-              } else {
-                return "#ccc";
-              }
+            .style("stroke", function (dd) {
+              const e = dd.edge ? dd.edge : dd;
+              return id(e.source) === hoveredID || id(e.target) === hoveredID
+                ? hoveredColor
+                : "#ccc";
             });
         })
-        .on("mouseout", function (event, d) {
+        .on("mouseout", function () {
+          // Restore each edge's original stroke and opacity.
           d3.selectAll("path.edge")
             .style("opacity", 1)
-            .style("stroke", function () {
+            .style("stroke", function (dd) {
+              // For default edges, dd.edge is stored; for custom, dd is the edge.
+              const e = dd.edge ? dd.edge : dd;
               return d3.select(this).attr("data-original-stroke");
             });
         });
     })
-    .catch((error) => console.error("Failed to fetch data:", error));
+    .catch((error) =>
+      console.error("Failed to fetch data (or process diagram):", error)
+    );
 }
 
 drawRadialDiagram();
