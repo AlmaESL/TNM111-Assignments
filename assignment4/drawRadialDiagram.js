@@ -168,12 +168,12 @@ function drawRadialDiagram() {
       });
       const edges = Array.from(edgesMap.values());
 
-      // Compute an interaction count for each node.
-      root.leaves().forEach((node) => {
-        node.data.value = edges.filter(
-          (e) => e.source === node || e.target === node
-        ).length;
-      });
+      // // Compute an interaction count for each node.
+      // root.leaves().forEach((node) => {
+      //   node.data.value = edges.filter(
+      //     (e) => e.source === node || e.target === node
+      //   ).length;
+      // });
 
       // Separate edges into two groups.
       const customEdges = edges.filter(
@@ -230,7 +230,12 @@ function drawRadialDiagram() {
       node
         .append("circle")
         .attr("r", 5)
-        .style("fill", (d) => d.data.colour);
+        .style("fill", (d) => d.data.colour)
+        .call((text) =>
+          text
+            .append("title")
+            .text((d) => `Appeared in ${d.data.value} scenes.`)
+        );
 
       node
         .append("text")
@@ -243,12 +248,17 @@ function drawRadialDiagram() {
         .call((text) =>
           text
             .append("title")
-            .text((d) => `Number of scenes appeared in: ${d.data.value}. `)
+            .text((d) => `Appeared in ${d.data.value} scenes.`)
         );
 
       // ─── HOVER INTERACTIVITY ON NODES ──────────────────────────────────────
+      let selectedNode = null; // Track currently selected node
+
       node
         .on("mouseover", function (event, d) {
+          // Skip hover if a node is selected
+          if (selectedNode) return;
+
           // Determine the hovered color:
           // If the hovered node is gray (#808080), use red; otherwise, use the node's color.
           const hoveredColor =
@@ -271,6 +281,9 @@ function drawRadialDiagram() {
             });
         })
         .on("mouseout", function () {
+          // Skip mouseout if a node is selected
+          if (selectedNode) return;
+
           // Restore each edge's original stroke and opacity.
           d3.selectAll("path.edge")
             .style("opacity", 1)
@@ -279,7 +292,64 @@ function drawRadialDiagram() {
               const e = dd.edge ? dd.edge : dd;
               return d3.select(this).attr("data-original-stroke");
             });
+        })
+        .on("click", function (event, d) {
+          if (selectedNode && selectedNode === d) {
+            // If clicked node is already selected, unselect it
+            selectedNode = null;
+
+            // Restore all edges
+            d3.selectAll("path.edge")
+              .style("opacity", 1)
+              .style("stroke", function (dd) {
+                return d3.select(this).attr("data-original-stroke");
+              });
+          } else {
+            selectedNode = d;
+
+            const selectedColor =
+              d.data.colour === "#808080" ? "red" : d.data.colour;
+            const selectedID = id(d);
+
+            d3.selectAll("path.edge")
+              .style("opacity", function (dd) {
+                const e = dd.edge ? dd.edge : dd;
+                return id(e.source) === selectedID ||
+                  id(e.target) === selectedID
+                  ? 1
+                  : 0.01;
+              })
+              .style("stroke", function (dd) {
+                const e = dd.edge ? dd.edge : dd;
+                return id(e.source) === selectedID ||
+                  id(e.target) === selectedID
+                  ? selectedColor
+                  : "#ccc";
+              });
+          }
         });
+
+      // ─── CLICK ANYWHERE TO UNSELECT ──────────────────────────────────────────────
+
+      // Clicking outside nodes unselects the current selection
+      d3.select("body").on("click", function (event) {
+        // Ignore click if it was on a node
+        const clickedElement = event.target;
+        if (
+          clickedElement.tagName === "circle" ||
+          clickedElement.tagName === "text"
+        ) {
+          return;
+        }
+
+        // Clear selection
+        selectedNode = null;
+        d3.selectAll("path.edge")
+          .style("opacity", 1)
+          .style("stroke", function (dd) {
+            return d3.select(this).attr("data-original-stroke");
+          });
+      });
     })
     .catch((error) =>
       console.error("Failed to fetch data (or process diagram):", error)
