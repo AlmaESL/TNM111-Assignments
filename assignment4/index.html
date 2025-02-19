@@ -10,27 +10,31 @@
 
 <body>
     <header>
-        <img src="images/rebel_logo.jpeg" alt="Rebel logo">
         Star Wars Visualization
-        <img src="images/imperial_logo.jpeg" alt="imperial logo">
     </header>
+
     <div class="container">
-
         <div class="networkDiv">
-            <div id="network"></div>
-            <h2>network placeholder</h2>
+            <!-- This container will hold one instance of the radial diagram -->
+            <div id="network">
+                <h3>View 1</h3>
+            </div>
         </div>
-
 
         <div class="arcDiv">
-            <div id="arc"></div>
+            <!-- This container will hold the second instance of the radial diagram -->
+            <div id="arc">
+                <h3>View 2</h3>
+            </div>
         </div>
 
-
         <div class="gui">
+            <!-- controls for view 1-->
+            <h5>Controls view 1</h5>
+            <label for="episode-selector1">Select Episode:</label>
+            <select id="episode-selector1">
 
-            <label for="episode-selector">Select Episode:</label>
-            <select id="episode-selector">
+                <option value="json/starwars-full-interactions-allCharacters.json">All Episodes</option>
                 <option value="json/starwars-episode-1-interactions-allCharacters.json">Episode 1</option>
                 <option value="json/starwars-episode-2-interactions-allCharacters.json">Episode 2</option>
                 <option value="json/starwars-episode-3-interactions-allCharacters.json">Episode 3</option>
@@ -38,21 +42,52 @@
                 <option value="json/starwars-episode-5-interactions-allCharacters.json">Episode 5</option>
                 <option value="json/starwars-episode-6-interactions-allCharacters.json">Episode 6</option>
                 <option value="json/starwars-episode-7-interactions-allCharacters.json">Episode 7</option>
-                <option value="json/starwars-full-interactions-allCharacters.json">All Episodes</option> 
             </select>
 
             <hr>
             <p>Order by:</p>
-            <input type="radio" id="alphabetical" name="order" value="alphabetical" checked>
-            <label for="alphabetical">By name</label>
+            <input type="radio" id="alphabetical1" name="order1" value="alphabetical" checked>
+            <label for="alphabetical1">By name</label>
             <br>
-            <input type="radio" id="occurrences" name="order" value="occurrences">
-            <label for="occurrences">By appearances</label>
+            <input type="radio" id="occurrences1" name="order1" value="occurrences">
+            <label for="occurrences1">By appearances</label>
+
+            <br><br>
+            <!-- Divider between View 1 and View 2 -->
+            <hr class="view-divider">
+
+            <!-- controls for view 2 -->
+            <h5>Controls view 2</h5>
+            <label for="episode-selector2">Select Episode:</label>
+            <select id="episode-selector2">
+
+                <option value="json/starwars-full-interactions-allCharacters.json">All Episodes</option>
+                <option value="json/starwars-episode-1-interactions-allCharacters.json">Episode 1</option>
+                <option value="json/starwars-episode-2-interactions-allCharacters.json">Episode 2</option>
+                <option value="json/starwars-episode-3-interactions-allCharacters.json">Episode 3</option>
+                <option value="json/starwars-episode-4-interactions-allCharacters.json">Episode 4</option>
+                <option value="json/starwars-episode-5-interactions-allCharacters.json">Episode 5</option>
+                <option value="json/starwars-episode-6-interactions-allCharacters.json">Episode 6</option>
+                <option value="json/starwars-episode-7-interactions-allCharacters.json">Episode 7</option>
+            </select>
+
+            <hr>
+            <p>Order by:</p>
+            <input type="radio" id="alphabetical2" name="order2" value="alphabetical" checked>
+            <label for="alphabetical2">By name</label>
+            <br>
+            <input type="radio" id="occurrences2" name="order2" value="occurrences">
+            <label for="occurrences2">By appearances</label>
         </div>
     </div>
 
-
-    <script src="arcDiagram.js"></script>
+    <!-- Include the radial diagram script once -->
+    <script src="drawRadialDiagram.js"></script>
+    <!-- Call the function twice, once for each container -->
+    <script>
+        drawRadialDiagram("#network");
+        drawRadialDiagram("#arc");
+    </script>
 </body>
 
 </html>
