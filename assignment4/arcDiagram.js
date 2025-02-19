@@ -39,14 +39,8 @@ function drawArcDiagram(nodes, links, orders) {
 
     //if nodes share color, use it; otherwise, fall back to a default.
     function sameColor({ source, target }) {
-        return colors.get(source) === colors.get(target) ? colors.get(source) : "#aaa";
+        return  "#aaa";
     }
-
-    // function sameColor({ source, target }) {
-    //     return colors.get(source) === colors.get(target)
-    //         ? "#aaa"          //if same, use a neutral gray
-    //         : colors.get(source);  //otherwise, use the source node's color
-    // }
 
     //create svg
     const svg = d3.create("svg")
@@ -145,19 +139,16 @@ function drawArcDiagram(nodes, links, orders) {
                 (n.id === target && d.id === source)
             )));
 
-            //highlight the links that connect to the hovered node
-            // path.classed("primary", l => l.source === d.id || l.target === d.id)
-            //     .filter(".primary")
-            //     .raise();
+            const hoverColor = (d.colour.toLowerCase() === "#808080") ? "#000" : d.colour;
 
             path.filter(l => l.source === d.id || l.target === d.id)
-                .attr("stroke", d.colour)
+                .attr("stroke", hoverColor)
                 .classed("primary", true)
                 .raise();
 
 
             //show the tooltip with node info
-            tooltip.html(`${d.id}<br>Number of appearances: ${d.value}`)
+            tooltip.html(`<u>${d.id}</u><br>Number of appearances: ${d.value}`)
                 .style("left", (event.pageX + 10) + "px")
                 .style("top", (event.pageY + 10) + "px")
                 .transition()
