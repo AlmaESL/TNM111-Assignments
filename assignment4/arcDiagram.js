@@ -80,10 +80,8 @@ function drawArcDiagram(nodes, links, orders) {
     //add tooltip for link hovering
     path
         .on("pointerenter", function (event, d) {
-            //change stroke color to darkr on hover
-            d3.select(this)
-                .attr("stroke", d3.lab(sameColor(d)).darker(20));
 
+            d3.select(this).attr("stroke", d3.lab(colors.get(d.source)).darker(1));
             //show link info 
             tooltip.html(
                 `
@@ -104,6 +102,8 @@ function drawArcDiagram(nodes, links, orders) {
         .on("pointerout", function (event, d) {
             //revert stroke to original color
             d3.select(this).attr("stroke", sameColor(d));
+            // Revert stroke back to grey.
+            d3.select(this).attr("stroke", "#ccc");
             tooltip.transition()
                 .duration(200)
                 .style("opacity", 0);
@@ -144,14 +144,20 @@ function drawArcDiagram(nodes, links, orders) {
                 (n.id === source && d.id == target) ||
                 (n.id === target && d.id === source)
             )));
-            
+
             //highlight the links that connect to the hovered node
-            path.classed("primary", l => l.source === d.id || l.target === d.id)
-                .filter(".primary")
+            // path.classed("primary", l => l.source === d.id || l.target === d.id)
+            //     .filter(".primary")
+            //     .raise();
+
+            path.filter(l => l.source === d.id || l.target === d.id)
+                .attr("stroke", d.colour)
+                .classed("primary", true)
                 .raise();
 
+
             //show the tooltip with node info
-            tooltip.html(`${d.id}<br>Number of occurrences: ${d.value}`)
+            tooltip.html(`${d.id}<br>Number of appearances: ${d.value}`)
                 .style("left", (event.pageX + 10) + "px")
                 .style("top", (event.pageY + 10) + "px")
                 .transition()
@@ -167,6 +173,9 @@ function drawArcDiagram(nodes, links, orders) {
             svg.classed("hover", false);
             label.classed("primary", false);
             label.classed("secondary", false);
+
+            path.filter(l => l.source === d.id || l.target === d.id)
+                .attr("stroke", "#ccc");
             path.classed("primary", false).order();
 
             tooltip.transition()
@@ -180,8 +189,6 @@ function drawArcDiagram(nodes, links, orders) {
       .hover text { fill: #aaa; }
       .hover g.primary text { font-weight: bold; fill: #242424; }
       .hover g.secondary text { fill: #242424; }
-      .hover path { stroke: #ccc; }
-      .hover path.primary { stroke: #242424; }
     `);
 
     //update the chart if a new ordering has been selected 

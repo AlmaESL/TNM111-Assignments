@@ -31,14 +31,14 @@ header img {
 
 .arcDiv {
     width: 40%;
-    padding: 10px;
+    padding: 0px;
     box-sizing: border-box;
     overflow: auto;
 }
 
 .gui {
     width: 15%;
-    padding: 10px;
+    padding: 5px;
     box-sizing: border-box;
     background-color: #e8e8e8;
 }
