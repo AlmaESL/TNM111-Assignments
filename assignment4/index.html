@@ -10,15 +10,18 @@
 
 <body>
     <header>
-        <img src="images/rebel_logo.jpeg" alt="Rebel logo">
+        <!-- <img src="images/rebel_logo.jpeg" alt="Rebel logo"> -->
         Star Wars Visualization
-        <img src="images/imperial_logo.jpeg" alt="imperial logo">
+        <!-- <img src="images/imperial_logo.jpeg" alt="imperial logo"> -->
     </header>
+
+    
     <div class="container">
 
         <div class="networkDiv">
             <div id="network"></div>
-            <h2>network placeholder</h2>
+            <svg width="800" height="800"></svg>
+            <script src="drawRadialDiagram.js"></script>
         </div>
 
 
@@ -41,18 +44,17 @@
                 <option value="json/starwars-full-interactions-allCharacters.json">All Episodes</option> 
             </select>
 
-            <hr>
+            <!-- <hr>
             <p>Order by:</p>
             <input type="radio" id="alphabetical" name="order" value="alphabetical" checked>
             <label for="alphabetical">By name</label>
             <br>
             <input type="radio" id="occurrences" name="order" value="occurrences">
-            <label for="occurrences">By appearances</label>
+            <label for="occurrences">By appearances</label> -->
         </div>
     </div>
 
 
-    <script src="arcDiagram.js"></script>
 </body>
 
 </html>

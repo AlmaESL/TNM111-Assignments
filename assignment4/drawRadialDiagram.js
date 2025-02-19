@@ -1,3 +1,18 @@
+// ─── CREATE TOOLTIP (SAME AS ARC DIAGRAM) ───────────────────────────────
+let tooltip = d3.select("body").select(".tooltip");
+if (tooltip.empty()) {
+  tooltip = d3.select("body")
+    .append("div")
+    .attr("class", "tooltip")
+    .style("position", "absolute")
+    .style("background", "#fff")
+    .style("padding", "5px")
+    .style("border", "1px solid #ccc")
+    .style("border-radius", "4px")
+    .style("pointer-events", "none")
+    .style("opacity", 0);
+}
+
 // ─── DIMENSIONS, SVG, & CLUSTER LAYOUT ─────────────────────────────────────────
 const width = 700,
   height = 700,
@@ -158,12 +173,18 @@ function drawRadialDiagram() {
           const source = nameToNode.get(sourceName);
           const target = nameToNode.get(targetName);
           if (source && target) {
+            // Store link.value if available (or default to 1)
             edgesMap.set(key, {
               source,
               target,
               path: bundledPath([source, target]),
+              value: link.value || 1,
             });
           }
+        } else {
+          // If duplicate, you might choose to sum the values:
+          const e = edgesMap.get(key);
+          e.value += link.value || 1;
         }
       });
       const edges = Array.from(edgesMap.values());
@@ -219,7 +240,7 @@ function drawRadialDiagram() {
         .attr("data-original-stroke", "#ccc")
         .attr("d", (d) => d.segments.join(""));
 
-      // Draw the nodes and add labels.
+      // ─── DRAW THE NODES AND ADD LABELS ───────────────────────────────────────
       const node = svg
         .append("g")
         .selectAll("g")
@@ -239,25 +260,17 @@ function drawRadialDiagram() {
         .attr("x", (d) => (d.x < 180 ? 6 : -6))
         .attr("text-anchor", (d) => (d.x < 180 ? "start" : "end"))
         .attr("transform", (d) => (d.x < 180 ? null : "rotate(180)"))
-        .text((d) => d.data.name)
-        .call((text) =>
-          text
-            .append("title")
-            .text((d) => `Number of scenes appeared in: ${d.data.value}. `)
-        );
+        .text((d) => d.data.name);
+      // (Remove the default title so our custom tooltip is used)
 
-      // ─── HOVER INTERACTIVITY ON NODES ──────────────────────────────────────
+      // ─── ADD HOVER INTERACTIVITY & TOOLTIP FOR NODES ─────────────────────────
       node
-        .on("mouseover", function (event, d) {
-          // Determine the hovered color:
-          // If the hovered node is gray (#808080), use red; otherwise, use the node's color.
-          const hoveredColor =
-            d.data.colour === "#808080" ? "red" : d.data.colour;
+        .on("pointerenter", function (event, d) {
+          // Highlight connected edges.
+          const hoveredColor = d.data.colour === "#808808" ? "red" : d.data.colour;
           const hoveredID = id(d);
           d3.selectAll("path.edge")
             .style("opacity", function (dd) {
-              // For default edges, the original edge is stored in dd.edge;
-              // for custom edges, dd is already the edge object.
               const e = dd.edge ? dd.edge : dd;
               return id(e.source) === hoveredID || id(e.target) === hoveredID
                 ? 1
@@ -269,16 +282,68 @@ function drawRadialDiagram() {
                 ? hoveredColor
                 : "#ccc";
             });
+          // Show tooltip with node info.
+          tooltip.html(
+            `${d.data.name}<br>Number of scenes appeared in: ${d.data.value}`
+          )
+            .style("left", event.pageX + 10 + "px")
+            .style("top", event.pageY + 10 + "px")
+            .transition()
+            .duration(200)
+            .style("opacity", 0.9);
         })
-        .on("mouseout", function () {
-          // Restore each edge's original stroke and opacity.
+        .on("pointermove", function (event) {
+          tooltip
+            .style("left", event.pageX + 10 + "px")
+            .style("top", event.pageY + 10 + "px");
+        })
+        .on("pointerleave", function () {
           d3.selectAll("path.edge")
             .style("opacity", 1)
             .style("stroke", function (dd) {
-              // For default edges, dd.edge is stored; for custom, dd is the edge.
               const e = dd.edge ? dd.edge : dd;
               return d3.select(this).attr("data-original-stroke");
             });
+          tooltip.transition().duration(200).style("opacity", 0);
+        });
+
+      // ─── ADD TOOLTIP INTERACTIVITY TO EDGES (LINKS) ───────────────────────────
+      d3.selectAll("path.edge")
+        .on("pointerenter", function (event, d) {
+          // Fade all edges except the one being hovered.
+          d3.selectAll("path.edge")
+            .filter(function () {
+              return this !== event.currentTarget;
+            })
+            .transition()
+            .duration(200)
+            .style("opacity", 0.01);
+
+          // Ensure the hovered edge is fully opaque.
+          d3.select(event.currentTarget)
+            .transition()
+            .duration(200)
+            .style("opacity", 1);
+          // For default edges, the original edge is stored in d.edge.
+          const e = d.edge ? d.edge : d;
+          tooltip.html(
+            `Source: ${e.source.data.name}<br>
+             Target: ${e.target.data.name}<br>
+             Number of scenes together: ${e.value || "N/A"}`
+          )
+            .style("left", event.pageX + 10 + "px")
+            .style("top", event.pageY + 10 + "px")
+            .transition()
+            .duration(200)
+            .style("opacity", 0.9);
+        })
+        .on("pointermove", function (event) {
+          tooltip
+            .style("left", event.pageX + 10 + "px")
+            .style("top", event.pageY + 10 + "px");
+        })
+        .on("pointerleave", function () {
+          tooltip.transition().duration(200).style("opacity", 0);
         });
     })
     .catch((error) =>
