@@ -24,14 +24,14 @@ header img {
 
 .networkDiv {
     width: 45%;
-    padding: 10px;
+    padding: 2px;
     box-sizing: border-box;
     /* background-color: #f0f0f0; */
 }
 
 .arcDiv {
-    width: 40%;
-    padding: 0px;
+    width: 45%;
+    padding: 2px;
     box-sizing: border-box;
     overflow: auto;
 }
@@ -44,6 +44,14 @@ header img {
 }
 
 
-svg text {
-    font-size: 12px;
+/* svg text {
+    font-size: 20px;
+} */
+
+
+.view-divider {
+    border: 1px;
+    height: 10px;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+    margin: 20px 0;
 }

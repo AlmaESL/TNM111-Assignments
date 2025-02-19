@@ -1,6 +1,9 @@
 (function () {
-  // The main drawing function now accepts a container selector and a jsonFile.
-  function drawRadialDiagram(containerSelector, jsonFile = "json/starwars-full-interactions-allCharacters.json") {
+  // The main drawing function now accepts three parameters:
+  // containerSelector: the container in which to draw the diagram
+  // jsonFile: the path to the JSON file to load
+  // order: either "alphabetical" or "occurrences"
+  function drawRadialDiagram(containerSelector, jsonFile = "json/starwars-full-interactions-allCharacters.json", order = "alphabetical") {
     // Remove any existing SVG in the container.
     const container = d3.select(containerSelector);
     container.select("svg").remove();
@@ -21,9 +24,9 @@
     }
 
     // ─── DIMENSIONS, SVG, & CLUSTER LAYOUT ─────────────────────────
-    const width = 650,
+    const width = 600,
       height = 700,
-      radius = width / 2,
+      radius = width/1.75,
       k = 6; // number of segments used for edge bundling
 
     // Create an SVG element inside the container.
@@ -154,10 +157,26 @@
     fetch(jsonFile)
       .then((response) => response.json())
       .then((data) => {
-        // Create a dummy root so that each node becomes a child.
+        // Pre-calculate occurrence counts for each node.
+        data.nodes.forEach((d) => (d.count = 0));
+        data.links.forEach((link) => {
+          data.nodes[link.source].count += 1;
+          data.nodes[link.target].count += 1;
+        });
+
+        // Build a dummy root so that each node becomes a child,
+        // and sort the children based on the chosen ordering.
         const root = d3
           .hierarchy({ name: "", children: data.nodes })
-          .sum((d) => d.value);
+          .sum((d) => d.value)
+          .sort((a, b) => {
+            if (order === "alphabetical") {
+              return d3.ascending(a.data.name, b.data.name);
+            } else if (order === "occurrences") {
+              return d3.descending(a.data.count, b.data.count) || d3.ascending(a.data.name, b.data.name);
+            }
+            return 0;
+          });
 
         // Compute the cluster layout.
         cluster(root);
@@ -192,7 +211,7 @@
         });
         const edges = Array.from(edgesMap.values());
 
-        // Compute an interaction count for each node.
+        // Compute an interaction count for each node (if not already computed).
         root.leaves().forEach((node) => {
           node.data.value = edges.filter(
             (e) => e.source === node || e.target === node
@@ -250,14 +269,15 @@
 
         node
           .append("circle")
-          .attr("r", 3.5)
+          .attr("r", 4)
           .style("fill", (d) => d.data.colour);
 
         // Make the labels smaller by setting a reduced font size.
         node
           .append("text")
           .attr("dy", ".31em")
-          .style("font-size", "10px")
+          .style("font-size", "8px")
+          .style("font-weight", "bold")
           .style("fill", (d) => d.data.colour)
           .attr("x", (d) => (d.x < 180 ? 6 : -6))
           .attr("text-anchor", (d) => (d.x < 180 ? "start" : "end"))
@@ -267,9 +287,7 @@
         // ─── NODE HOVER INTERACTIVITY & TOOLTIP ─────────────────────────────
         node
           .on("pointerenter", function (event, d) {
-            // Highlight connected edges within this instance.
-            const hoveredColor =
-              d.data.colour === "#808080" ? "red" : d.data.colour;
+            const hoveredColor = d.data.colour === "#808080" ? "red" : d.data.colour;
             const hoveredID = id(d);
             svg.selectAll("path.edge")
               .style("opacity", function (dd) {
@@ -358,22 +376,43 @@
       );
   }
 
-  // Expose the function globally so it can be called from your HTML.
+  // Expose the function globally.
   window.drawRadialDiagram = drawRadialDiagram;
 
-  // ─── INITIAL DRAWING & EVENT LISTENERS FOR THE DROPDOWNS ─────────────────────
+  // ─── INITIAL DRAWING & EVENT LISTENERS FOR DROPDOWNS & RADIO BUTTONS ─────────
+  // Episode selectors for each view.
   const sel1 = document.getElementById("episode-selector1");
   const sel2 = document.getElementById("episode-selector2");
 
-  // Draw the initial diagrams using the current selection values.
-  drawRadialDiagram("#network", sel1.value);
-  drawRadialDiagram("#arc", sel2.value);
+  // Get the current ordering from each view's radio buttons.
+  const getOrder = (name) => {
+    return document.querySelector(`input[name="${name}"]:checked`).value;
+  };
 
-  // When a selection changes, re-draw the corresponding diagram.
+  // Initial drawing.
+  drawRadialDiagram("#network", sel1.value, getOrder("order1"));
+  drawRadialDiagram("#arc", sel2.value, getOrder("order2"));
+
+  // When the episode selection changes, redraw the corresponding diagram
   sel1.addEventListener("change", function () {
-    drawRadialDiagram("#network", this.value);
+    drawRadialDiagram("#network", this.value, getOrder("order1"));
   });
   sel2.addEventListener("change", function () {
-    drawRadialDiagram("#arc", this.value);
+    drawRadialDiagram("#arc", this.value, getOrder("order2"));
+  });
+
+  // Add event listeners for the ordering radio buttons in each view.
+  const order1Radios = document.querySelectorAll('input[name="order1"]');
+  order1Radios.forEach(radio => {
+    radio.addEventListener("change", function () {
+      drawRadialDiagram("#network", sel1.value, getOrder("order1"));
+    });
+  });
+
+  const order2Radios = document.querySelectorAll('input[name="order2"]');
+  order2Radios.forEach(radio => {
+    radio.addEventListener("change", function () {
+      drawRadialDiagram("#arc", sel2.value, getOrder("order2"));
+    });
   });
 })();
