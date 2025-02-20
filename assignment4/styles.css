@@ -20,7 +20,7 @@ header {
 
 p {
     font-size: 15px;
-    padding:0px; 
+    padding: 5px;
 }
 
 
@@ -45,6 +45,17 @@ p {
 
 }
 
+.vertical-divider {
+    border-left: 2px solid #ccc;
+    height: calc(100% - 50px); /* Adjust height to account for header */
+    position: absolute;
+    left: 42%;
+    top: 0;
+    transform: translateY(41px); 
+}
+
+
+/* gui */
 .gui {
     width: 15%;
     padding: 5px;
@@ -53,9 +64,22 @@ p {
 }
 
 
+#howto {
+    color: blue;
+}
+
+.howtoText {
+    font-size: 11px;
+}
+
+
 /* svg text {
     font-size: 20px;
 } */
+
+.radioText{
+    font-size: 11px;
+}
 
 
 .view-divider {
@@ -71,9 +95,6 @@ p {
 /* sliders */
 .slider {
     width: 50%;
-    margin-top: 0px; 
-    margin-left: 5%; 
+    margin-top: 0px;
+    margin-left: 5%;
 }
-
-
-

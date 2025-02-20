@@ -5,11 +5,13 @@
    * @param {string} containerSelector - The container in which to draw the diagram.
    * @param {string} [jsonFile="json/starwars-full-interactions-allCharacters.json"] - The path to the JSON file to load.
    * @param {"alphabetical"|"occurrences"} [order="alphabetical"] - The order in which to arrange the nodes.
+   * @param {number[]} [letterRange=[0,25]] - Two-element array with min and max indices (0 = A, 25 = Z) for allowed starting letters.
    */
   function drawRadialDiagram(
     containerSelector,
     jsonFile = "json/starwars-full-interactions-allCharacters.json",
-    order = "alphabetical"
+    order = "alphabetical",
+    letterRange = [0, 25]
   ) {
     const container = d3.select(containerSelector);
 
@@ -24,7 +26,7 @@
       oldSvg.selectAll("g.node").each(function (d) {
         oldPositions[d.data.name] = d3.select(this).attr("transform");
       });
-      // Save custom edge paths
+      // Save custom edge paths.
       oldSvg.selectAll("path.custom.edge").each(function (d) {
         const sourceName = d.source.data.name;
         const targetName = d.target.data.name;
@@ -34,7 +36,7 @@
             : `${targetName}-${sourceName}`;
         oldCustomEdgePaths[key] = d3.select(this).attr("d");
       });
-      // Save default edge paths
+      // Save default edge paths.
       oldSvg.selectAll("path.default.edge").each(function (d) {
         const sourceName = d.edge.source.data.name;
         const targetName = d.edge.target.data.name;
@@ -45,8 +47,6 @@
         oldDefaultEdgePaths[key] = d3.select(this).attr("d");
       });
     }
-
-    // Remove any existing SVG in the container.
     container.select("svg").remove();
 
     // ─── DIMENSIONS, SVG, & CLUSTER LAYOUT ───────────────────────────────
@@ -55,10 +55,12 @@
       radius = width / 1.75,
       k = 6; // number of segments used for edge bundling
 
-    const svg = container
+    // Create outer SVG and then a group translated to the center.
+    const outerSvg = container
       .append("svg")
       .attr("width", width)
-      .attr("height", height)
+      .attr("height", height);
+    const svg = outerSvg
       .append("g")
       .attr("transform", `translate(${width / 2},${height / 2})`);
 
@@ -193,7 +195,7 @@
         .style("opacity", 0);
     }
 
-    // For node pinning via click.
+    // For pinning nodes and edges via click.
     let pinnedNodeId = null;
     let pinnedEdgeKey = null;
 
@@ -201,8 +203,50 @@
     fetch(jsonFile)
       .then((response) => response.json())
       .then((data) => {
+        // *** FILTER THE DATA BASED ON THE LETTER RANGE ***
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        const allowedIndices = new Set();
+        data.nodes.forEach((d, i) => {
+          const letter = d.name.charAt(0).toUpperCase();
+          const idx = alphabet.indexOf(letter);
+          if (idx >= letterRange[0] && idx <= letterRange[1]) {
+            allowedIndices.add(i);
+          }
+        });
+        // Filter nodes.
+        const allowedNodes = data.nodes.filter((d, i) => allowedIndices.has(i));
+
+        // If no characters are in the selected range, display a message and return.
+        if (allowedNodes.length === 0) {
+          outerSvg.append("text")
+            .attr("x", 10)
+            .attr("y", 70)
+            .attr("fill", "#333")
+            .style("font-size", "15px")
+            .text("No characters for selected range");
+          return;
+        }
+
+        // Build mapping from original node index to new index.
+        const indexMap = {};
+        allowedNodes.forEach((d, newIdx) => {
+          const origIdx = data.nodes.findIndex((n) => n.name === d.name);
+          indexMap[origIdx] = newIdx;
+        });
+        // Filter and remap links: keep only links where both endpoints are allowed.
+        const allowedLinks = data.links.filter(
+          (link) =>
+            allowedIndices.has(link.source) && allowedIndices.has(link.target)
+        );
+        allowedLinks.forEach((link) => {
+          link.source = indexMap[link.source];
+          link.target = indexMap[link.target];
+        });
+        data.nodes = allowedNodes;
+        data.links = allowedLinks;
+        // *** END FILTERING ***
+
         // Build a dummy root so that each node becomes a child.
-        // Use the JSON’s provided "value" property.
         const root = d3
           .hierarchy({ name: "", children: data.nodes })
           .sum((d) => d.value)
@@ -241,7 +285,7 @@
                 source,
                 target,
                 path: bundledPath([source, target]),
-                value: link.value, // use provided link value
+                value: link.value,
               });
             }
           } else {
@@ -251,7 +295,7 @@
         });
         const edges = Array.from(edgesMap.values());
 
-        // ─── SEPARATE EDGES ─────────────────────────────────────────────
+        // Separate edges into custom (non-gray) and default (gray) groups.
         const customEdges = edges.filter(
           (e) => e.source.data.colour !== "#808080"
         );
@@ -275,7 +319,7 @@
           .attr("class", "custom edge")
           .style("stroke", (d) => d.source.data.colour)
           .attr("data-original-stroke", (d) => d.source.data.colour)
-          .attr("stroke-width", 1.5)
+          .attr("stroke-width", 2)
           .attr("d", (d) => {
             const sourceName = d.source.data.name;
             const targetName = d.target.data.name;
@@ -385,9 +429,7 @@
                   : "#ccc";
               });
             localTooltip
-              .html(
-                `${d.data.name}<br>Appeared in ${d.data.value} scenes`
-              )
+              .html(`<u>${d.data.name}</u><br>Appeared in ${d.data.value} scenes`)
               .style("left", event.pageX + 10 + "px")
               .style("top", event.pageY + 10 + "px")
               .transition()
@@ -404,7 +446,7 @@
             if (pinnedNodeId === d.data.name) return;
             svg.selectAll("path.edge")
               .style("opacity", 1)
-              .style("stroke", function (dd) {
+              .style("stroke", function () {
                 return d3.select(this).attr("data-original-stroke");
               });
             localTooltip.transition().duration(200).style("opacity", 0);
@@ -416,9 +458,7 @@
             } else {
               pinnedNodeId = d.data.name;
               localTooltip
-                .html(
-                  `${d.data.name}<br>Appeared in ${d.data.value} scenes`
-                )
+                .html(`<u>${d.data.name}</u><br>Appeared in ${d.data.value} scenes`)
                 .style("left", event.pageX + 10 + "px")
                 .style("top", event.pageY + 10 + "px")
                 .transition()
@@ -427,7 +467,7 @@
             }
           });
 
-        // ─── EDGE HOVER INTERACTIVITY (no pinning for edges) ─────────────
+        // ─── EDGE HOVER & PINNING (TOOLTIP) INTERACTIVITY ─────────────────
         svg.selectAll("path.edge")
           .on("pointerenter", function (event, d) {
             const e = d.edge ? d.edge : d;
@@ -476,14 +516,20 @@
               e.source.data.name < e.target.data.name
                 ? `${e.source.data.name}-${e.target.data.name}`
                 : `${e.target.data.name}-${e.source.data.name}`;
+            // If this edge is pinned or connects to the pinned node, leave it highlighted.
             if (pinnedEdgeKey === edgeKey) return;
-            svg.selectAll("path.edge")
+            if (
+              pinnedNodeId &&
+              (e.source.data.name === pinnedNodeId || e.target.data.name === pinnedNodeId)
+            ) {
+              return;
+            }
+            // Revert styling only for this edge.
+            d3.select(this)
               .transition()
               .duration(200)
               .style("opacity", 1)
-              .style("stroke", function () {
-                return d3.select(this).attr("data-original-stroke");
-              });
+              .style("stroke", d3.select(this).attr("data-original-stroke"));
             localTooltip.transition().duration(200).style("opacity", 0);
           })
           .on("click", function (event, d) {
@@ -510,6 +556,14 @@
                 .style("opacity", 0.9);
             }
           });
+
+        // ─── ADD NODE COUNT LABEL AT THE BOTTOM LEFT ─────────────────────────
+        outerSvg.append("text")
+          .attr("x", 10)
+          .attr("y", 70)
+          .attr("fill", "#333")
+          .style("font-size", "15px")
+          .text(`Characters in current selection: ${root.leaves().length}`);
       })
       .catch((error) =>
         console.error("Failed to fetch data (or process diagram):", error)
@@ -519,34 +573,64 @@
   // Expose the function globally.
   window.drawRadialDiagram = drawRadialDiagram;
 
-
-
   // ─── INITIAL DRAWING & EVENT LISTENERS FOR DROPDOWNS & RADIO BUTTONS ─────────
+
+  // Helper to get current letter range from slider.
+  function getLetterRange(viewId) {
+    const sliderElement = document.getElementById(`alphaRange${viewId}`);
+    const sliderValues = sliderElement.noUiSlider.get(); // returns array of letters
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    return sliderValues.map(letter => alphabet.indexOf(letter));
+  }
+
   const sel1 = document.getElementById("episode-selector1");
   const sel2 = document.getElementById("episode-selector2");
   const getOrder = (name) =>
     document.querySelector(`input[name="${name}"]:checked`).value;
 
-  drawRadialDiagram("#network", sel1.value, getOrder("order1"));
-  drawRadialDiagram("#arc", sel2.value, getOrder("order2"));
+  // On initial draw use the full letter range: [0, 25]
+  drawRadialDiagram("#network", sel1.value, getOrder("order1"), [0, 25]);
+  drawRadialDiagram("#arc", sel2.value, getOrder("order2"), [0, 25]);
 
+  // When episode selection changes, redraw using the current slider range.
   sel1.addEventListener("change", function () {
-    drawRadialDiagram("#network", this.value, getOrder("order1"));
+    drawRadialDiagram(
+      "#network",
+      this.value,
+      getOrder("order1"),
+      getLetterRange(1)
+    );
   });
   sel2.addEventListener("change", function () {
-    drawRadialDiagram("#arc", this.value, getOrder("order2"));
+    drawRadialDiagram(
+      "#arc",
+      this.value,
+      getOrder("order2"),
+      getLetterRange(2)
+    );
   });
 
+  // When ordering changes, redraw using the current slider range.
   const order1Radios = document.querySelectorAll('input[name="order1"]');
   order1Radios.forEach((radio) => {
     radio.addEventListener("change", function () {
-      drawRadialDiagram("#network", sel1.value, getOrder("order1"));
+      drawRadialDiagram(
+        "#network",
+        sel1.value,
+        getOrder("order1"),
+        getLetterRange(1)
+      );
     });
   });
   const order2Radios = document.querySelectorAll('input[name="order2"]');
   order2Radios.forEach((radio) => {
     radio.addEventListener("change", function () {
-      drawRadialDiagram("#arc", sel2.value, getOrder("order2"));
+      drawRadialDiagram(
+        "#arc",
+        sel2.value,
+        getOrder("order2"),
+        getLetterRange(2)
+      );
     });
   });
 })();
