@@ -16,6 +16,12 @@
 <body>
     <header>
         Star Wars Character Visualization
+        <div id="searchContainer">
+            <input type="text" id="characterSearch" placeholder="Search character" />
+            <button onclick="searchCharacter()">Search</button>
+        </div>
+        </div>
+
     </header>
 
     <div class="container">
@@ -104,7 +110,8 @@
                 <br>
                 <em><u>NOTE: </u>Ordering from 12 o'clock clockwise</em>
             </p>
-            <p class="howtoText">- Coloring for main characters always inhetited from the source</p>
+            <p class="howtoText">- Coloring for main characters always inherited from the source.</p>
+            <p class="howtoText">- Search function on character name, returns episodes where character is present. </p>
 
 
 
@@ -189,6 +196,60 @@
 
         createSlider(1);
         createSlider(2);
+
+    </script>
+
+
+    <!-- Character search -->
+    <script>
+        function searchCharacter() {
+            const searchTerm = document.getElementById("characterSearch").value.trim().toLowerCase();
+
+            if (!searchTerm) return;
+
+            // List of JSON files for each episode.
+            const episodes = [
+                // { name: "All Episodes", file: "json/starwars-full-interactions-allCharacters.json" },
+                { name: "1", file: "json/starwars-episode-1-interactions-allCharacters.json" },
+                { name: "2", file: "json/starwars-episode-2-interactions-allCharacters.json" },
+                { name: "3", file: "json/starwars-episode-3-interactions-allCharacters.json" },
+                { name: "4", file: "json/starwars-episode-4-interactions-allCharacters.json" },
+                { name: "5", file: "json/starwars-episode-5-interactions-allCharacters.json" },
+                { name: "6", file: "json/starwars-episode-6-interactions-allCharacters.json" },
+                { name: "7", file: "json/starwars-episode-7-interactions-allCharacters.json" }
+            ];
+
+            // For each episode, load the JSON and check if any node name matches the search term.
+            const searchPromises = episodes.map(ep => {
+                return d3.json(ep.file)
+                    .then(data => {
+
+                        const found = data.nodes.some(node => node.name.toLowerCase() === searchTerm);
+                        return found ? ep.name : null;
+                    })
+                    .catch(error => null);
+            });
+
+            // Resolve all promises and display the results.
+            Promise.all(searchPromises).then(results => {
+                const matchingEpisodes = results.filter(epName => epName !== null);
+                if (matchingEpisodes.length > 0) {
+                    alert(`"${searchTerm}" appears in Episodes: ${matchingEpisodes.join(", ")}`);
+                } else {
+                    alert(`"${searchTerm}" not found`);
+                }
+            });
+
+
+        }
+
+        // Search when pressing Enter in the search input
+        document.getElementById("characterSearch").addEventListener("keypress", function (event) {
+            if (event.key === "Enter") {
+                searchCharacter();
+            }
+        });
+
 
     </script>
 
