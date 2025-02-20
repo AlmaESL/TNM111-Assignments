@@ -6,6 +6,11 @@
     <title>Star Wars Visualization</title>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <link rel="stylesheet" href="styles.css">
+    <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.5.0/nouislider.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.5.0/nouislider.min.js"></script>
+</head>
 </head>
 
 <body>
@@ -17,14 +22,20 @@
         <div class="networkDiv">
             <!-- This container will hold one instance of the radial diagram -->
             <div id="network">
-                <h3>View 1</h3>
+                <p><b>View 1</b></p>
+                <p>Filter by first letter in character name: </p><br>
+                <div id="alphaRange1" class="slider"></div>
+           
             </div>
         </div>
 
         <div class="arcDiv">
             <!-- This container will hold the second instance of the radial diagram -->
             <div id="arc">
-                <h3>View 2</h3>
+                <p><b>View 2</b></p>
+                <p>Filter by first letter in character name: </p><br>
+                <div id="alphaRange2" class="slider"></div>
+                
             </div>
         </div>
 
@@ -52,7 +63,8 @@
             <input type="radio" id="occurrences1" name="order1" value="occurrences">
             <label for="occurrences1">By appearances</label>
 
-            <br><br>
+
+            <br>
             <!-- Divider between View 1 and View 2 -->
             <hr class="view-divider">
 
@@ -76,18 +88,65 @@
             <input type="radio" id="alphabetical2" name="order2" value="alphabetical" checked>
             <label for="alphabetical2">By name</label>
             <br>
+
             <input type="radio" id="occurrences2" name="order2" value="occurrences">
             <label for="occurrences2">By appearances</label>
+
+
+
         </div>
     </div>
 
     <!-- Include the radial diagram script once -->
     <script src="drawRadialDiagram.js"></script>
+
+
+    <!-- Alpha sliders for filtering -->
+    <script>
+        function updateAlphaRange(viewId, values) {
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+            
+        }
+
+        function createSlider(viewId) {
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+            const slider = document.getElementById(`alphaRange${viewId}`);
+            noUiSlider.create(slider, {
+                start: ['A', 'Z'], // Set the initial values to cover the entire range
+                connect: true,
+                range: {
+                    'min': 0,
+                    'max': 25
+                },
+                step: 1,
+                tooltips: true,
+                format: {
+                    to: function (value) {
+                        return alphabet[Math.round(value)];
+                    },
+                    from: function (value) {
+                        return alphabet.indexOf(value);
+                    }
+                }
+            });
+
+            slider.noUiSlider.on('update', function (values) {
+                updateAlphaRange(viewId, values.map(value => alphabet.indexOf(value)));
+            });
+        }
+
+        createSlider(1);
+        createSlider(2);
+    </script>
+
     <!-- Call the function twice, once for each container -->
     <script>
         drawRadialDiagram("#network");
         drawRadialDiagram("#arc");
     </script>
+
+
+
 </body>
 
 </html>

@@ -5,7 +5,7 @@ body {
 
 header {
     text-align: center;
-    padding: 10px;
+    padding: 1px;
     background: #222;
     color: #fff;
     font-size: 2em;
@@ -16,13 +16,14 @@ header {
         radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px);
     background-position: 0 0, 25px 25px;
     background-size: 50px 50px;
-
 }
 
-/* header img {
-    max-height: 40px;
-    margin: 0 20px;
-} */
+p {
+    font-size: 15px;
+    padding:0px; 
+}
+
+
 
 .container {
     display: flex;
@@ -60,7 +61,19 @@ header {
 .view-divider {
     border: none;
     height: 5px;
-    background:rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.9);
     /* box-shadow: 0 0 10px #ff0000; */
     margin: 20px 0;
 }
+
+
+
+/* sliders */
+.slider {
+    width: 50%;
+    margin-top: 0px; 
+    margin-left: 5%; 
+}
+
+
+
