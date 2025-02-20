@@ -6,25 +6,38 @@
     <title>Star Wars Visualization</title>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <link rel="stylesheet" href="styles.css">
+    <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.5.0/nouislider.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.5.0/nouislider.min.js"></script>
+</head>
 </head>
 
 <body>
     <header>
-        Star Wars Visualization
+        Star Wars Character Visualization
     </header>
 
     <div class="container">
         <div class="networkDiv">
             <!-- This container will hold one instance of the radial diagram -->
             <div id="network">
-                <h3>View 1</h3>
+                <p><b><u>View 1</u></b></p>
+                <p>Filter by first letter in character name: </p><br>
+                <div id="alphaRange1" class="slider"></div>
+
             </div>
         </div>
+
+        <div class="vertical-divider"></div>
 
         <div class="arcDiv">
             <!-- This container will hold the second instance of the radial diagram -->
             <div id="arc">
-                <h3>View 2</h3>
+                <p><b><u>View 2</u></b></p>
+                <p>Filter by first letter in character name: </p><br>
+                <div id="alphaRange2" class="slider"></div>
+
             </div>
         </div>
 
@@ -44,17 +57,17 @@
                 <option value="json/starwars-episode-7-interactions-allCharacters.json">Episode 7</option>
             </select>
 
-            <hr>
             <p>Order by:</p>
             <input type="radio" id="alphabetical1" name="order1" value="alphabetical" checked>
-            <label for="alphabetical1">By name</label>
+            <label for="alphabetical1" class="radioText">By name</label>
             <br>
             <input type="radio" id="occurrences1" name="order1" value="occurrences">
-            <label for="occurrences1">By appearances</label>
+            <label for="occurrences1" class="radioText">By appearances</label>
 
-            <br><br>
+
+            <br>
             <!-- Divider between View 1 and View 2 -->
-            <hr class="view-divider">
+            <hr>
 
             <!-- controls for view 2 -->
             <h5>Controls view 2</h5>
@@ -71,23 +84,122 @@
                 <option value="json/starwars-episode-7-interactions-allCharacters.json">Episode 7</option>
             </select>
 
-            <hr>
             <p>Order by:</p>
             <input type="radio" id="alphabetical2" name="order2" value="alphabetical" checked>
-            <label for="alphabetical2">By name</label>
+            <label for="alphabetical2" class="radioText">By name</label>
             <br>
+
             <input type="radio" id="occurrences2" name="order2" value="occurrences">
-            <label for="occurrences2">By appearances</label>
+            <label for="occurrences2" class="radioText">By appearances</label>
+
+            <br>
+            <hr class="view-divider">
+
+            <p id="howto"><b><u>How to</u></b></p>
+            <p class="howtoText">- Click and/or hover on a character or link to see interactions with other characters
+                and number of appearances or appearances in same scenes.</p>
+            <p class="howtoText">- Use the sliders to filter characters by the first letter in their name.</p>
+            <p class="howtoText">- Use the dropdowns to select the episode.</p>
+            <p class="howtoText">- Use the radio buttons to change the order of the characters.
+                <br>
+                <em><u>NOTE: </u>Ordering from 12 o'clock clockwise</em>
+            </p>
+            <p class="howtoText">- Coloring for main characters always inhetited from the source</p>
+
+
+
         </div>
     </div>
 
     <!-- Include the radial diagram script once -->
     <script src="drawRadialDiagram.js"></script>
+
+
+    <!-- Alpha sliders for filtering -->
+    <script>
+
+        /**
+         * Updates the radial diagram by filtering characters based on the first letter of their name.
+         *
+         * @param {number} viewId - The ID of the view to update (1 or 2). Determines which radial diagram is updated.
+         * @param {string[]} values - An array of letters representing the selected range on the slider.
+         * 
+         * Converts the given letter range into indices and redraws the corresponding radial diagram
+         * with the filtered characters for the selected episode and order.
+         */
+
+        function updateAlphaRange(viewId, values) {
+            // Convert the letters to indices.
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+            const letterIndices = values.map(letter => alphabet.indexOf(letter));
+            if (viewId === 1) {
+                drawRadialDiagram(
+                    "#network",
+                    document.getElementById("episode-selector1").value,
+                    document.querySelector('input[name="order1"]:checked').value,
+                    letterIndices
+                );
+            } else {
+                drawRadialDiagram(
+                    "#arc",
+                    document.getElementById("episode-selector2").value,
+                    document.querySelector('input[name="order2"]:checked').value,
+                    letterIndices
+                );
+            }
+        }
+
+        /**
+         * Creates a noUiSlider for filtering characters by the first letter of their name.
+         *
+         * @param {number} viewId - The ID of the view for which to create the slider (1 or 2).
+         *                         Determines which slider element to target.
+         *
+         * Initializes a slider on the designated element that allows selection of a range
+         * of letters from 'A' to 'Z'. The slider uses letter indices (0 = A, 25 = Z) for
+         * internal calculations and updates the corresponding radial diagram when the slider
+         * values change.
+         */
+        function createSlider(viewId) {
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+            const slider = document.getElementById(`alphaRange${viewId}`);
+            noUiSlider.create(slider, {
+                start: ['A', 'Z'], // full range initially
+                connect: true,
+                range: {
+                    'min': 0,
+                    'max': 25
+                },
+                step: 1,
+                tooltips: true,
+                format: {
+                    to: function (value) {
+                        return alphabet[Math.round(value)];
+                    },
+                    from: function (value) {
+                        return alphabet.indexOf(value);
+                    }
+                }
+            });
+
+            slider.noUiSlider.on('update', function (values) {
+                updateAlphaRange(viewId, values);
+            });
+        }
+
+        createSlider(1);
+        createSlider(2);
+
+    </script>
+
     <!-- Call the function twice, once for each container -->
     <script>
         drawRadialDiagram("#network");
         drawRadialDiagram("#arc");
     </script>
+
+
+
 </body>
 
 </html>
