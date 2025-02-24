@@ -100,13 +100,13 @@ p {
 }
 
 
-/* Highlight brushed nodes by adding a stroke around their circles */
+/* Style for brushed nodes: add a border to the circle */
 .node.brushed circle {
     stroke: black;
     stroke-width: 2px;
   }
   
-  /* Highlight brushed edges with a different stroke color and width */
+  /* Style for brushed edges */
   path.brushed {
     stroke: orange;
     stroke-width: 2.5px;

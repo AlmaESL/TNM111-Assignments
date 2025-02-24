@@ -573,9 +573,9 @@
         // … after the node transition (after node.transition().duration(750)...)
 
         // ─── ADD BRUSHING & LINKING FUNCTIONALITY ─────────────────────────────
+        // Define the brush behavior as before.
         const brush = d3
           .brush()
-          // Define the brush extent relative to the centered coordinate system:
           .extent([
             [-width / 2, -height / 2],
             [width / 2, height / 2],
@@ -583,15 +583,49 @@
           .on("brush", brushed)
           .on("end", brushEnded);
 
-        svg.append("g").attr("class", "brush").call(brush);
+        // Function to add the brush group.
+        function addBrush() {
+          // Only add the brush group if it doesn't already exist.
+          if (svg.select("g.brush").empty()) {
+            svg.append("g").attr("class", "brush").call(brush);
+          }
+        }
 
+        // Function to remove the brush group and clear any brushed classes.
+        function removeBrush() {
+          svg.select("g.brush").remove();
+          // Clear any brushing-related classes.
+          node.classed("brushed", false);
+          svg
+            .selectAll("path.custom.edge, path.default.edge")
+            .classed("brushed", false);
+        }
+
+        // Initially, check if brushing is enabled via the checkbox.
+        const brushCheckbox = document.getElementById("enable-brush");
+        if (brushCheckbox && brushCheckbox.checked) {
+          addBrush();
+        }
+
+        // Attach an event listener to toggle brushing when the checkbox changes.
+        if (brushCheckbox) {
+          brushCheckbox.addEventListener("change", function () {
+            if (this.checked) {
+              addBrush();
+            } else {
+              removeBrush();
+            }
+          });
+        }
+
+        // ─── BRUSH EVENT HANDLERS ─────────────────────────────
         function brushed(event) {
           const selection = event.selection;
           if (!selection) return;
 
           // Highlight nodes within the brush selection.
-          // Compute each node's (x,y) from its polar coordinates.
           node.classed("brushed", (d) => {
+            // Convert polar coordinates (d.x, d.y) to Cartesian (x, y).
             const angle = (d.x - 90) * (Math.PI / 180);
             const x = d.y * Math.cos(angle);
             const y = d.y * Math.sin(angle);
@@ -603,7 +637,7 @@
             );
           });
 
-          // Get the names of all nodes that are currently brushed.
+          // Collect the names of brushed nodes.
           const brushedNames = new Set();
           node
             .filter(function (d) {
@@ -611,11 +645,10 @@
             })
             .each((d) => brushedNames.add(d.data.name));
 
-          // Highlight edges connecting two brushed nodes.
+          // Highlight edges that connect two brushed nodes.
           svg
             .selectAll("path.custom.edge, path.default.edge")
             .classed("brushed", (d) => {
-              // Handle both edge objects that are stored directly or wrapped inside d.edge.
               const sourceName = d.edge
                 ? d.edge.source.data.name
                 : d.source.data.name;
@@ -629,7 +662,7 @@
         }
 
         function brushEnded(event) {
-          // If the brush selection is cleared, remove all brushing classes.
+          // If the brush selection is cleared, remove brushed classes.
           if (!event.selection) {
             node.classed("brushed", false);
             svg
