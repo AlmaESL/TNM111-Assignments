@@ -3,8 +3,6 @@
 // jsonFile: the path to the JSON file to load
 // order: either "alphabetical" or "occurrences"
 (function () {
-
-
   /**
    * Draws a radial diagram with undirected interactions from a JSON file.
    *
@@ -17,7 +15,6 @@
     jsonFile = "json/starwars-full-interactions-allCharacters.json",
     order = "alphabetical"
   ) {
-
     // Select container in the html file in which to draw the diagram
     const container = d3.select(containerSelector);
 
@@ -35,7 +32,6 @@
       });
       // For custom edges:
       oldSvg.selectAll("path.custom.edge").each(function (d) {
-
         // Save the path for each custom edge
         const sourceName = d.source.data.name;
         const targetName = d.target.data.name;
@@ -77,7 +73,7 @@
       // Center the SVG element
       .attr("transform", `translate(${width / 2},${height / 2})`);
 
-    // Create cluster layout with specified size 
+    // Create cluster layout with specified size
     const cluster = d3.cluster().size([360, radius - 150]);
 
     // ─── RADIAL LINE GENERATOR WITH BUNDLING CURVE ───────────────────────────────
@@ -148,7 +144,6 @@
       }
     }
 
-
     class Line {
       constructor(a, b) {
         this.a = a;
@@ -192,7 +187,6 @@
        *   - Control points to use in the dot product.
        * @return {[number, number]} The computed dot product.
        */
-
 
       /**
        * Computes the dot product of the given control points and coefficients.
@@ -345,7 +339,7 @@
 
         // ─── DRAW CUSTOM EDGES WITH TRANSITIONS ─────────────────────────────
 
-        // Draw custom edges with transitions 
+        // Draw custom edges with transitions
         const customEdgeSelection = svg
           .append("g")
           .attr("fill", "none")
@@ -453,7 +447,9 @@
           .transition()
           .duration(750)
           .attr("transform", (d) => `rotate(${d.x - 90}) translate(${d.y},0)`);
-
+        // For pinning nodes and edges via click.
+        let pinnedNodeId = null;
+        let pinnedEdgeKey = null;
         // ─── NODE HOVER INTERACTIVITY & TOOLTIP ─────────────────────────────
         // Create a local tooltip specific to this container
         let localTooltip = container.select(".tooltip");
@@ -472,6 +468,7 @@
 
         node
           .on("pointerenter", function (event, d) {
+            if (pinnedNodeId && pinnedNodeId !== d.data.name) return;
             const hoveredColor =
               d.data.colour === "#808080" ? "red" : d.data.colour;
             const hoveredID = id(d);
@@ -500,11 +497,13 @@
               .style("opacity", 0.9);
           })
           .on("pointermove", function (event) {
+            if (pinnedNodeId && pinnedNodeId !== d.data.name) return;
             localTooltip
               .style("left", event.pageX + 10 + "px")
               .style("top", event.pageY + 10 + "px");
           })
           .on("pointerleave", function () {
+            if (pinnedNodeId === d.data.name) return;
             svg
               .selectAll("path.edge")
               .style("opacity", 1)
@@ -513,10 +512,28 @@
                 return d3.select(this).attr("data-original-stroke");
               });
             localTooltip.transition().duration(200).style("opacity", 0);
+          })
+          .on("click", function (event, d) {
+            if (pinnedNodeId === d.data.name) {
+              pinnedNodeId = null;
+              localTooltip.transition().duration(200).style("opacity", 0);
+            } else {
+              pinnedNodeId = d.data.name;
+              localTooltip
+                .html(
+                  `<u>${d.data.name}</u><br>Appeared in ${d.data.value} scenes`
+                )
+                .style("left", event.pageX + 10 + "px")
+                .style("top", event.pageY + 10 + "px")
+                .transition()
+                .duration(200)
+                .style("opacity", 0.9);
+            }
           });
 
         // ─── EDGE HOVER INTERACTIVITY: FADE OTHER EDGES & TOOLTIP ─────────────
-        svg.selectAll("path.edge")
+        svg
+          .selectAll("path.edge")
           .on("pointerenter", function (event, d) {
             svg
               .selectAll("path.edge")
