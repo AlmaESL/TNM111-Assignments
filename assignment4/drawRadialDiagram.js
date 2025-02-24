@@ -218,7 +218,8 @@
 
         // If no characters are in the selected range, display a message and return.
         if (allowedNodes.length === 0) {
-          outerSvg.append("text")
+          outerSvg
+            .append("text")
             .attr("x", 10)
             .attr("y", 70)
             .attr("fill", "#333")
@@ -383,16 +384,20 @@
           .data(root.leaves(), (d) => d.data.name)
           .join("g")
           .attr("class", "node")
-          .attr("transform", (d) =>
-            oldPositions[d.data.name] ||
-            `rotate(${d.x - 90}) translate(${d.y},0)`
+          .attr(
+            "transform",
+            (d) =>
+              oldPositions[d.data.name] ||
+              `rotate(${d.x - 90}) translate(${d.y},0)`
           );
 
-        node.append("circle")
+        node
+          .append("circle")
           .attr("r", 5)
           .style("fill", (d) => d.data.colour);
 
-        node.append("text")
+        node
+          .append("text")
           .attr("dy", ".31em")
           .style("font-size", "8px")
           .style("font-weight", "bold")
@@ -402,11 +407,10 @@
           .attr("transform", (d) => (d.x < 180 ? null : "rotate(180)"))
           .text((d) => d.data.name);
 
-        node.transition()
+        node
+          .transition()
           .duration(750)
-          .attr("transform", (d) =>
-            `rotate(${d.x - 90}) translate(${d.y},0)`
-          );
+          .attr("transform", (d) => `rotate(${d.x - 90}) translate(${d.y},0)`);
 
         // ─── NODE HOVER & PINNING (TOOLTIP) INTERACTIVITY ─────────────────
         node
@@ -415,7 +419,8 @@
             const hoveredColor =
               d.data.colour === "#808080" ? "red" : d.data.colour;
             const hoveredID = id(d);
-            svg.selectAll("path.edge")
+            svg
+              .selectAll("path.edge")
               .style("opacity", function (dd) {
                 const e = dd.edge ? dd.edge : dd;
                 return id(e.source) === hoveredID || id(e.target) === hoveredID
@@ -429,7 +434,9 @@
                   : "#ccc";
               });
             localTooltip
-              .html(`<u>${d.data.name}</u><br>Appeared in ${d.data.value} scenes`)
+              .html(
+                `<u>${d.data.name}</u><br>Appeared in ${d.data.value} scenes`
+              )
               .style("left", event.pageX + 10 + "px")
               .style("top", event.pageY + 10 + "px")
               .transition()
@@ -444,7 +451,8 @@
           })
           .on("pointerleave", function (event, d) {
             if (pinnedNodeId === d.data.name) return;
-            svg.selectAll("path.edge")
+            svg
+              .selectAll("path.edge")
               .style("opacity", 1)
               .style("stroke", function () {
                 return d3.select(this).attr("data-original-stroke");
@@ -458,7 +466,9 @@
             } else {
               pinnedNodeId = d.data.name;
               localTooltip
-                .html(`<u>${d.data.name}</u><br>Appeared in ${d.data.value} scenes`)
+                .html(
+                  `<u>${d.data.name}</u><br>Appeared in ${d.data.value} scenes`
+                )
                 .style("left", event.pageX + 10 + "px")
                 .style("top", event.pageY + 10 + "px")
                 .transition()
@@ -468,7 +478,8 @@
           });
 
         // ─── EDGE HOVER & PINNING (TOOLTIP) INTERACTIVITY ─────────────────
-        svg.selectAll("path.edge")
+        svg
+          .selectAll("path.edge")
           .on("pointerenter", function (event, d) {
             const e = d.edge ? d.edge : d;
             const edgeKey =
@@ -476,7 +487,8 @@
                 ? `${e.source.data.name}-${e.target.data.name}`
                 : `${e.target.data.name}-${e.source.data.name}`;
             if (pinnedEdgeKey && pinnedEdgeKey !== edgeKey) return;
-            svg.selectAll("path.edge")
+            svg
+              .selectAll("path.edge")
               .filter(function () {
                 return this !== event.currentTarget;
               })
@@ -520,7 +532,8 @@
             if (pinnedEdgeKey === edgeKey) return;
             if (
               pinnedNodeId &&
-              (e.source.data.name === pinnedNodeId || e.target.data.name === pinnedNodeId)
+              (e.source.data.name === pinnedNodeId ||
+                e.target.data.name === pinnedNodeId)
             ) {
               return;
             }
@@ -557,8 +570,77 @@
             }
           });
 
+        // … after the node transition (after node.transition().duration(750)...)
+
+        // ─── ADD BRUSHING & LINKING FUNCTIONALITY ─────────────────────────────
+        const brush = d3
+          .brush()
+          // Define the brush extent relative to the centered coordinate system:
+          .extent([
+            [-width / 2, -height / 2],
+            [width / 2, height / 2],
+          ])
+          .on("brush", brushed)
+          .on("end", brushEnded);
+
+        svg.append("g").attr("class", "brush").call(brush);
+
+        function brushed(event) {
+          const selection = event.selection;
+          if (!selection) return;
+
+          // Highlight nodes within the brush selection.
+          // Compute each node's (x,y) from its polar coordinates.
+          node.classed("brushed", (d) => {
+            const angle = (d.x - 90) * (Math.PI / 180);
+            const x = d.y * Math.cos(angle);
+            const y = d.y * Math.sin(angle);
+            return (
+              x >= selection[0][0] &&
+              x <= selection[1][0] &&
+              y >= selection[0][1] &&
+              y <= selection[1][1]
+            );
+          });
+
+          // Get the names of all nodes that are currently brushed.
+          const brushedNames = new Set();
+          node
+            .filter(function (d) {
+              return d3.select(this).classed("brushed");
+            })
+            .each((d) => brushedNames.add(d.data.name));
+
+          // Highlight edges connecting two brushed nodes.
+          svg
+            .selectAll("path.custom.edge, path.default.edge")
+            .classed("brushed", (d) => {
+              // Handle both edge objects that are stored directly or wrapped inside d.edge.
+              const sourceName = d.edge
+                ? d.edge.source.data.name
+                : d.source.data.name;
+              const targetName = d.edge
+                ? d.edge.target.data.name
+                : d.target.data.name;
+              return (
+                brushedNames.has(sourceName) && brushedNames.has(targetName)
+              );
+            });
+        }
+
+        function brushEnded(event) {
+          // If the brush selection is cleared, remove all brushing classes.
+          if (!event.selection) {
+            node.classed("brushed", false);
+            svg
+              .selectAll("path.custom.edge, path.default.edge")
+              .classed("brushed", false);
+          }
+        }
+
         // ─── ADD NODE COUNT LABEL AT THE BOTTOM LEFT ─────────────────────────
-        outerSvg.append("text")
+        outerSvg
+          .append("text")
           .attr("x", 10)
           .attr("y", 70)
           .attr("fill", "#333")
@@ -580,7 +662,7 @@
     const sliderElement = document.getElementById(`alphaRange${viewId}`);
     const sliderValues = sliderElement.noUiSlider.get(); // returns array of letters
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-    return sliderValues.map(letter => alphabet.indexOf(letter));
+    return sliderValues.map((letter) => alphabet.indexOf(letter));
   }
 
   const sel1 = document.getElementById("episode-selector1");
