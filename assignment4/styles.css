@@ -64,3 +64,16 @@ header {
     /* box-shadow: 0 0 10px #ff0000; */
     margin: 20px 0;
 }
+
+/* Highlight brushed nodes by adding a stroke around their circles */
+.node.brushed circle {
+    stroke: black;
+    stroke-width: 2px;
+  }
+  
+  /* Highlight brushed edges with a different stroke color and width */
+  path.brushed {
+    stroke: orange;
+    stroke-width: 2.5px;
+  }
+  

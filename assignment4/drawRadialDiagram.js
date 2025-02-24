@@ -531,6 +531,74 @@
             }
           });
 
+        // … after the node transition (after node.transition().duration(750)...)
+
+        // ─── ADD BRUSHING & LINKING FUNCTIONALITY ─────────────────────────────
+        const brush = d3
+          .brush()
+          // Define the brush extent relative to the centered coordinate system:
+          .extent([
+            [-width / 2, -height / 2],
+            [width / 2, height / 2],
+          ])
+          .on("brush", brushed)
+          .on("end", brushEnded);
+
+        svg.append("g").attr("class", "brush").call(brush);
+
+        function brushed(event) {
+          const selection = event.selection;
+          if (!selection) return;
+
+          // Highlight nodes within the brush selection.
+          // Compute each node's (x,y) from its polar coordinates.
+          node.classed("brushed", (d) => {
+            const angle = (d.x - 90) * (Math.PI / 180);
+            const x = d.y * Math.cos(angle);
+            const y = d.y * Math.sin(angle);
+            return (
+              x >= selection[0][0] &&
+              x <= selection[1][0] &&
+              y >= selection[0][1] &&
+              y <= selection[1][1]
+            );
+          });
+
+          // Get the names of all nodes that are currently brushed.
+          const brushedNames = new Set();
+          node
+            .filter(function (d) {
+              return d3.select(this).classed("brushed");
+            })
+            .each((d) => brushedNames.add(d.data.name));
+
+          // Highlight edges connecting two brushed nodes.
+          svg
+            .selectAll("path.custom.edge, path.default.edge")
+            .classed("brushed", (d) => {
+              // Handle both edge objects that are stored directly or wrapped inside d.edge.
+              const sourceName = d.edge
+                ? d.edge.source.data.name
+                : d.source.data.name;
+              const targetName = d.edge
+                ? d.edge.target.data.name
+                : d.target.data.name;
+              return (
+                brushedNames.has(sourceName) && brushedNames.has(targetName)
+              );
+            });
+        }
+
+        function brushEnded(event) {
+          // If the brush selection is cleared, remove all brushing classes.
+          if (!event.selection) {
+            node.classed("brushed", false);
+            svg
+              .selectAll("path.custom.edge, path.default.edge")
+              .classed("brushed", false);
+          }
+        }
+
         // ─── EDGE HOVER INTERACTIVITY: FADE OTHER EDGES & TOOLTIP ─────────────
         svg
           .selectAll("path.edge")
