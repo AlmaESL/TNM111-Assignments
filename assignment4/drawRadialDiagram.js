@@ -199,6 +199,8 @@
     let pinnedNodeId = null;
     let pinnedEdgeKey = null;
 
+    let nodeSelection; // declare in outer scope
+
     // ─── MAIN DRAW FUNCTION WITH UNDIRECTED INTERACTIONS ─────────────────────────
     fetch(jsonFile)
       .then((response) => response.json())
@@ -377,7 +379,7 @@
           .attr("d", (d) => d.segments.join(""));
 
         // ─── DRAW NODES AND LABELS WITH TRANSITIONS ─────────────────────────
-        const node = svg
+        nodeSelection = svg
           .append("g")
           .attr("class", "nodes")
           .selectAll("g.node")
@@ -391,12 +393,12 @@
               `rotate(${d.x - 90}) translate(${d.y},0)`
           );
 
-        node
+        nodeSelection
           .append("circle")
           .attr("r", 5)
           .style("fill", (d) => d.data.colour);
 
-        node
+        nodeSelection
           .append("text")
           .attr("dy", ".31em")
           .style("font-size", "8px")
@@ -407,13 +409,13 @@
           .attr("transform", (d) => (d.x < 180 ? null : "rotate(180)"))
           .text((d) => d.data.name);
 
-        node
+        nodeSelection
           .transition()
           .duration(750)
           .attr("transform", (d) => `rotate(${d.x - 90}) translate(${d.y},0)`);
 
         // ─── NODE HOVER & PINNING (TOOLTIP) INTERACTIVITY ─────────────────
-        node
+        nodeSelection
           .on("pointerenter", function (event, d) {
             if (pinnedNodeId && pinnedNodeId !== d.data.name) return;
             const hoveredColor =
@@ -570,8 +572,6 @@
             }
           });
 
-        // … after the node transition (after node.transition().duration(750)...)
-
         // ─── ADD BRUSHING & LINKING FUNCTIONALITY ─────────────────────────────
         // Define the brush behavior as before.
         const brush = d3
@@ -618,53 +618,78 @@
           });
         }
 
-        // ─── BRUSH EVENT HANDLERS ─────────────────────────────
         function brushed(event) {
           const selection = event.selection;
           if (!selection) return;
 
-          // Highlight nodes within the brush selection.
-          node.classed("brushed", (d) => {
-            // Convert polar coordinates (d.x, d.y) to Cartesian (x, y).
+          // Compute brushed nodes in the current diagram
+          const brushedNames = new Set();
+          nodeSelection.classed("brushed", function (d) {
+            // Convert polar coordinates to Cartesian coordinates.
             const angle = (d.x - 90) * (Math.PI / 180);
             const x = d.y * Math.cos(angle);
             const y = d.y * Math.sin(angle);
-            return (
+            const isBrushed =
               x >= selection[0][0] &&
               x <= selection[1][0] &&
               y >= selection[0][1] &&
-              y <= selection[1][1]
-            );
+              y <= selection[1][1];
+            if (isBrushed) brushedNames.add(d.data.name);
+            return isBrushed;
           });
 
-          // Collect the names of brushed nodes.
-          const brushedNames = new Set();
-          node
-            .filter(function (d) {
-              return d3.select(this).classed("brushed");
-            })
-            .each((d) => brushedNames.add(d.data.name));
+          // Optionally, update edge styling in this diagram here...
 
-          // Highlight edges that connect two brushed nodes.
-          svg
-            .selectAll("path.custom.edge, path.default.edge")
-            .classed("brushed", (d) => {
-              const sourceName = d.edge
-                ? d.edge.source.data.name
-                : d.source.data.name;
-              const targetName = d.edge
-                ? d.edge.target.data.name
-                : d.target.data.name;
-              return (
-                brushedNames.has(sourceName) && brushedNames.has(targetName)
-              );
-            });
+          // Broadcast the brushed node names to all diagrams
+          brushDispatcher.call("brushed", null, brushedNames);
         }
+
+        // // ─── BRUSH EVENT HANDLERS ─────────────────────────────
+        // function brushed(event) {
+        //   const selection = event.selection;
+        //   if (!selection) return;
+
+        //   // Highlight nodes within the brush selection.
+        //   node.classed("brushed", (d) => {
+        //     // Convert polar coordinates (d.x, d.y) to Cartesian (x, y).
+        //     const angle = (d.x - 90) * (Math.PI / 180);
+        //     const x = d.y * Math.cos(angle);
+        //     const y = d.y * Math.sin(angle);
+        //     return (
+        //       x >= selection[0][0] &&
+        //       x <= selection[1][0] &&
+        //       y >= selection[0][1] &&
+        //       y <= selection[1][1]
+        //     );
+        //   });
+
+        //   // Collect the names of brushed nodes.
+        //   const brushedNames = new Set();
+        //   node
+        //     .filter(function (d) {
+        //       return d3.select(this).classed("brushed");
+        //     })
+        //     .each((d) => brushedNames.add(d.data.name));
+
+        //   // Highlight edges that connect two brushed nodes.
+        //   // svg
+        //   //   .selectAll("path.custom.edge, path.default.edge")
+        //   //   .classed("brushed", (d) => {
+        //   //     const sourceName = d.edge
+        //   //       ? d.edge.source.data.name
+        //   //       : d.source.data.name;
+        //   //     const targetName = d.edge
+        //   //       ? d.edge.target.data.name
+        //   //       : d.target.data.name;
+        //   //     return (
+        //   //       brushedNames.has(sourceName) && brushedNames.has(targetName));
+        //   //  });
+        // }
 
         function brushEnded(event) {
           // If the brush selection is cleared, remove brushed classes.
           if (!event.selection) {
-            node.classed("brushed", false);
+            nodeSelection.classed("brushed", false);
             svg
               .selectAll("path.custom.edge, path.default.edge")
               .classed("brushed", false);
@@ -683,10 +708,34 @@
       .catch((error) =>
         console.error("Failed to fetch data (or process diagram):", error)
       );
+
+    const ns = containerSelector.replace("#", "");
+    brushDispatcher.on("brushed." + ns, function (brushedNames) {
+      console.log("ns" + ns);
+      // Update nodes in this diagram based on the global brushed set
+      if (nodeSelection) {
+        nodeSelection.classed("brushed", (d) => brushedNames.has(d.data.name));
+      }
+      // Update edges: assume each edge's data has source/target with a 'data.name'
+      svg
+        .selectAll("path.custom.edge, path.default.edge")
+        .classed("brushed", function (d) {
+          const sourceName = d.edge
+            ? d.edge.source.data.name
+            : d.source.data.name;
+          const targetName = d.edge
+            ? d.edge.target.data.name
+            : d.target.data.name;
+          return brushedNames.has(sourceName) || brushedNames.has(targetName);
+        });
+    });
   }
 
   // Expose the function globally.
   window.drawRadialDiagram = drawRadialDiagram;
+
+  // Create a global dispatcher for brush events
+  const brushDispatcher = d3.dispatch("brushed");
 
   // ─── INITIAL DRAWING & EVENT LISTENERS FOR DROPDOWNS & RADIO BUTTONS ─────────
 
