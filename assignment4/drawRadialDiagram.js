@@ -711,7 +711,6 @@
 
     const ns = containerSelector.replace("#", "");
     brushDispatcher.on("brushed." + ns, function (brushedNames) {
-      console.log("ns" + ns);
       // Update nodes in this diagram based on the global brushed set
       if (nodeSelection) {
         nodeSelection.classed("brushed", (d) => brushedNames.has(d.data.name));
